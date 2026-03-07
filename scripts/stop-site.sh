@@ -30,7 +30,7 @@ echo "⏹️   Stopping: $SITE_SLUG"
 # Remove slug from ACTIVE_SITES in .env
 # -------------------------------------------------------
 CURRENT_ACTIVE_SITES="${ACTIVE_SITES:-}"
-NEW_ACTIVE_SITES=$(echo "$CURRENT_ACTIVE_SITES" | tr ',' '\n' | grep -v "^$SITE_SLUG$" | tr '\n' ',' | sed 's/,$//')
+NEW_ACTIVE_SITES=$(echo "$CURRENT_ACTIVE_SITES" | tr ',' '\n' | { grep -v "^${SITE_SLUG}$" || true; } | tr '\n' ',' | sed 's/,$//')
 
 if grep -q "^ACTIVE_SITES=" "$ROOT_DIR/.env"; then
   TMP=$(mktemp)

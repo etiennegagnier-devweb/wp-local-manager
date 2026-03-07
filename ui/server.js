@@ -283,10 +283,39 @@ app.post("/api/cancel", (req, res) => {
 });
 
 app.get("/api/status", (req, res) => {
-  const activeSites = getActiveSites();
-  res.json({
-    active_sites: activeSites,
-    busy: activeProcess !== null,
+  exec("ddev list --json-output 2>/dev/null", { timeout: 10000 }, (err, stdout) => {
+    let ddevRunning = null;
+    try {
+      const parsed = JSON.parse(stdout);
+      const ourSlugs = new Set(readSites().map(s => s.slug));
+      ddevRunning = (parsed.raw || [])
+        .filter(s => s.status === "running" && ourSlugs.has(s.name))
+        .map(s => s.name);
+    } catch (e) {}
+
+    // Reconcile .env if ddev state differs from what is stored
+    if (ddevRunning !== null) {
+      const stored = getActiveSites();
+      const same = stored.length === ddevRunning.length &&
+        stored.every(s => ddevRunning.includes(s));
+      if (!same) {
+        try {
+          let envContent = fs.readFileSync(ENV_FILE, "utf8");
+          const newVal = ddevRunning.join(",");
+          if (envContent.match(/^ACTIVE_SITES=/m)) {
+            envContent = envContent.replace(/^ACTIVE_SITES=.*/m, `ACTIVE_SITES=${newVal}`);
+          } else {
+            envContent += `\nACTIVE_SITES=${newVal}`;
+          }
+          fs.writeFileSync(ENV_FILE, envContent);
+        } catch (e) {}
+      }
+    }
+
+    res.json({
+      active_sites: ddevRunning ?? getActiveSites(),
+      busy: activeProcess !== null,
+    });
   });
 });
 

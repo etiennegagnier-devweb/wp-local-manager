@@ -1,22 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WP Local Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    /* ── Theme tokens ───────────────────────────────── */
     :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --surface2: #22263a;
-      --border: #2e3350;
-      --accent: #4f8ef7;
-      --green: #3ecf8e;
-      --yellow: #f6c344;
-      --red: #f56565;
-      --text: #e2e8f0;
-      --muted: #718096;
-      --font-mono: "JetBrains Mono", "Fira Mono", monospace;
+      --font: "Plus Jakarta Sans", system-ui, sans-serif;
+      --mono: "Geist Mono", "Fira Mono", monospace;
+      --radius: 10px;
+      --radius-sm: 7px;
+      --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+      --shadow-md: 0 4px 24px rgba(0,0,0,.12), 0 1px 4px rgba(0,0,0,.08);
+    }
+
+    [data-theme="dark"] {
+      --bg:       #16151a;
+      --bg2:      #1d1c23;
+      --surface:  #232229;
+      --surface2: #2b2a32;
+      --border:   #302f38;
+      --border2:  #3d3b47;
+      --text:     #ede9f0;
+      --text2:    #a09cad;
+      --text3:    #635f70;
+      --accent:   #7c6af7;
+      --accent-t: rgba(124,106,247,.12);
+      --green:    #34c97e;
+      --green-t:  rgba(52,201,126,.1);
+      --amber:    #f59e0b;
+      --amber-t:  rgba(245,158,11,.1);
+      --red:      #f06060;
+      --red-t:    rgba(240,96,96,.1);
+    }
+
+    [data-theme="light"] {
+      --bg:       #f5f3ef;
+      --bg2:      #eceae5;
+      --surface:  #ffffff;
+      --surface2: #f5f3ef;
+      --border:   #e4e1da;
+      --border2:  #d6d2c8;
+      --text:     #1c1916;
+      --text2:    #6b6560;
+      --text3:    #a09a92;
+      --accent:   #5b4fcf;
+      --accent-t: rgba(91,79,207,.1);
+      --green:    #18a05a;
+      --green-t:  rgba(24,160,90,.08);
+      --amber:    #d97706;
+      --amber-t:  rgba(217,119,6,.08);
+      --red:      #dc3a3a;
+      --red-t:    rgba(220,58,58,.08);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,48 +62,131 @@
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 14px;
+      font-family: var(--font);
+      font-size: 13.5px;
       min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
     }
 
+    /* ── Header ─────────────────────────────────────── */
     header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 14px 24px;
+      height: 52px;
+      padding: 0 18px;
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
     }
 
-    header h1 { font-size: 16px; font-weight: 600; letter-spacing: -.3px; }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .logo svg { opacity: .9; }
+    .logo-text {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -.3px;
+      color: var(--text);
+    }
 
-    #status-bar {
+    .header-sep {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+    }
+
+    #running-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+    .running-label {
+      font-size: 11.5px;
+      color: var(--text3);
+      font-weight: 500;
+    }
+    #active-sites-bar {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: opacity .15s;
+    }
+    .pill:hover { opacity: .75; }
+    .pill.none { background: var(--surface2); color: var(--text3); }
+    .pill.running {
+      background: var(--green-t);
+      color: var(--green);
+      border: 1px solid rgba(52,201,126,.2);
+    }
+    .pill.running::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: blink 2s ease infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    #ram-warning {
+      display: none;
+      align-items: center;
+      gap: 5px;
+      background: var(--amber-t);
+      border: 1px solid rgba(245,158,11,.2);
+      color: var(--amber);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .header-right {
       margin-left: auto;
       display: flex;
-      gap: 10px;
       align-items: center;
-      font-size: 13px;
-      color: var(--muted);
+      gap: 8px;
     }
 
-    .badge {
-      background: var(--surface2);
+    /* Theme toggle */
+    .theme-btn {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 3px 10px;
-      font-family: var(--font-mono);
-      font-size: 12px;
+      background: var(--surface2);
+      color: var(--text2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s, color .15s;
     }
-    .badge.active { border-color: var(--green); color: var(--green); }
+    .theme-btn:hover { background: var(--border); color: var(--text); }
 
+    /* ── Layout ─────────────────────────────────────── */
     .layout {
       display: grid;
-      grid-template-columns: 320px 1fr;
-      height: calc(100vh - 53px);
+      grid-template-columns: 260px 1fr;
+      height: calc(100vh - 52px);
     }
 
-    /* ── Sidebar ── */
+    /* ── Sidebar ────────────────────────────────────── */
     .sidebar {
       background: var(--surface);
       border-right: 1px solid var(--border);
@@ -74,162 +195,340 @@
       overflow: hidden;
     }
 
-    .sidebar-header {
-      padding: 12px;
+    .sidebar-top {
+      padding: 10px;
       border-bottom: 1px solid var(--border);
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
 
-    .sidebar-header input {
+    .search-input {
       flex: 1;
-      background: var(--bg);
+      background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       color: var(--text);
-      padding: 7px 10px;
+      padding: 7px 11px;
       font-size: 13px;
+      font-family: var(--font);
       outline: none;
+      transition: border-color .15s;
     }
-    .sidebar-header input:focus { border-color: var(--accent); }
-
-    .btn {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 7px 14px;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: opacity .15s;
-      white-space: nowrap;
-    }
-    .btn:hover { opacity: .85; }
-    .btn.ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-    .btn.danger { background: var(--red); }
-    .btn.success { background: var(--green); color: #0f1117; }
-    .btn.warning { background: var(--yellow); color: #0f1117; }
-    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .search-input::placeholder { color: var(--text3); }
+    .search-input:focus { border-color: var(--accent); }
 
     .site-list { overflow-y: auto; flex: 1; }
+    .site-list::-webkit-scrollbar { width: 0; }
 
     .site-item {
-      padding: 11px 14px;
+      padding: 11px 12px;
       border-bottom: 1px solid var(--border);
       cursor: pointer;
       transition: background .1s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+    .site-item::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 6px; bottom: 6px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: transparent;
+      transition: background .15s;
     }
     .site-item:hover { background: var(--surface2); }
-    .site-item.selected { background: var(--surface2); border-left: 2px solid var(--accent); }
-    .site-item.is-active { border-left: 2px solid var(--green); }
+    .site-item.selected { background: var(--surface2); }
+    .site-item.selected::before { background: var(--accent); }
+    .site-item.is-running::before { background: var(--green); }
 
-    .site-name { font-weight: 500; font-size: 13px; }
-    .site-domain { color: var(--muted); font-size: 12px; margin-top: 2px; }
-    .badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
-
-    .tag {
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-family: var(--font-mono);
+    .site-fav {
+      width: 28px; height: 28px;
+      border-radius: 8px;
       background: var(--surface2);
       border: 1px solid var(--border);
-      color: var(--muted);
-    }
-    .tag.green { border-color: var(--green); color: var(--green); }
-    .tag.yellow { border-color: var(--yellow); color: var(--yellow); }
-    .tag.blue { border-color: var(--accent); color: var(--accent); }
-    .tag.red { border-color: var(--red); color: var(--red); }
-
-    /* ── Main ── */
-    .main { display: flex; flex-direction: column; overflow: hidden; }
-
-    .site-detail { flex: 1; overflow-y: auto; padding: 24px; }
-
-    .empty-state {
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100%;
-      color: var(--muted);
-      flex-direction: column;
-      gap: 8px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .site-fav img { width: 16px; height: 16px; }
+    .site-fav-letter {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
     }
 
+    .site-info { flex: 1; min-width: 0; }
+    .site-name {
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+    }
+    .site-sub {
+      font-size: 11.5px;
+      color: var(--text3);
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .site-status {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+    .dot-running {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+    .php-chip {
+      font-size: 10.5px;
+      color: var(--text3);
+      background: var(--bg2);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    /* ── Main ───────────────────────────────────────── */
+    .main { display: flex; flex-direction: column; overflow: hidden; }
+
+    .detail-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 32px;
+    }
+    .detail-scroll::-webkit-scrollbar { width: 4px; }
+    .detail-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+    .empty-state {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text3);
+    }
+    .empty-state p { font-size: 13px; }
+
+    /* ── Detail header ──────────────────────────────── */
     .detail-header {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: 20px;
-      gap: 16px;
+      gap: 20px;
+      margin-bottom: 24px;
     }
 
-    .detail-title { font-size: 20px; font-weight: 600; }
-    .detail-domain { color: var(--muted); font-size: 13px; margin-top: 3px; }
-    .detail-url { color: var(--accent); font-size: 12px; margin-top: 2px; font-family: var(--font-mono); }
+    .detail-left { display: flex; align-items: center; gap: 14px; }
 
-    .action-bar { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 16px;
+    .detail-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .detail-icon img { width: 22px; height: 22px; }
+    .detail-icon-letter {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase;
     }
 
-    .card {
+    .detail-title {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -.4px;
+      line-height: 1.2;
+    }
+    .detail-domain {
+      margin-top: 3px;
+      font-size: 12px;
+      color: var(--text3);
+      font-family: var(--mono);
+    }
+    .detail-local a {
+      font-size: 12px;
+      color: var(--accent);
+      text-decoration: none;
+      font-family: var(--mono);
+      opacity: .8;
+      transition: opacity .15s;
+    }
+    .detail-local a:hover { opacity: 1; }
+
+    .action-bar { display: flex; gap: 7px; flex-shrink: 0; align-items: flex-start; }
+
+    /* ── Buttons ────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      border: none;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: opacity .15s, transform .08s;
+      white-space: nowrap;
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .3; cursor: not-allowed; transform: none; }
+
+    .btn-ghost {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+    .btn-ghost:hover { background: var(--border); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-warning { background: var(--amber); color: #1c1916; }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-sm {
+      padding: 5px 11px;
+      font-size: 12px;
+    }
+
+    /* ── Sections ───────────────────────────────────── */
+    .section { margin-bottom: 20px; }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text3);
+      margin-bottom: 10px;
+    }
+
+    /* ── Sync card ──────────────────────────────────── */
+    .sync-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    .card:last-child { margin-bottom: 0; }
-
-    .card-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-      color: var(--muted);
-      margin-bottom: 12px;
-    }
-
-    .card-header {
+      border-radius: var(--radius);
+      padding: 16px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      gap: 16px;
+      box-shadow: var(--shadow);
+    }
+    .sync-times { display: flex; flex-direction: column; gap: 3px; }
+    .sync-time-row { display: flex; align-items: center; gap: 8px; }
+    .sync-time-label { font-size: 12px; color: var(--text3); width: 36px; }
+    .sync-time-val { font-size: 12px; color: var(--text2); }
+    .sync-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* ── Config grid ────────────────────────────────── */
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
     }
 
-    .field { margin-bottom: 12px; }
+    /* ── Cards ──────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-head {
+      padding: 13px 16px 0;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--text3);
+    }
+    .card-body { padding: 12px 16px 16px; }
+    .card-body > *:last-child { margin-bottom: 0 !important; }
+
+    /* full-width card variant */
+    .card-full {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    /* ── Form fields ────────────────────────────────── */
+    .field { margin-bottom: 11px; }
     .field:last-child { margin-bottom: 0; }
-    .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
     .field input, .field select, .field textarea {
       width: 100%;
-      background: var(--bg);
+      background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       color: var(--text);
       padding: 7px 10px;
       font-size: 13px;
+      font-family: var(--font);
       outline: none;
-      font-family: inherit;
+      transition: border-color .15s;
     }
-    .field textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
-    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+    .field select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a09a92'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+    .field textarea {
+      resize: vertical;
+      min-height: 82px;
+      line-height: 1.6;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: var(--accent);
+    }
 
     .toggle-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       font-size: 13px;
+      color: var(--text2);
+      padding: 2px 0;
       margin-bottom: 10px;
     }
+    .toggle-row:last-child { margin-bottom: 0; }
 
     .toggle {
-      width: 36px; height: 20px;
-      background: var(--border);
+      width: 34px; height: 20px;
+      background: var(--border2);
       border-radius: 10px;
       position: relative;
       cursor: pointer;
@@ -245,141 +544,175 @@
       border-radius: 50%;
       top: 3px; left: 3px;
       transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
     }
-    .toggle.on::after { transform: translateX(16px); }
+    .toggle.on::after { transform: translateX(14px); }
 
-    .sync-section {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
+    /* ── Disk ───────────────────────────────────────── */
+    .disk-num { font-size: 26px; font-weight: 600; letter-spacing: -.5px; font-family: var(--mono); }
+    .disk-parts { margin-top: 6px; display: flex; gap: 14px; font-size: 12px; color: var(--text3); }
+    .disk-parts strong { color: var(--text2); font-weight: 500; }
 
-    .sync-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    /* ── Disk usage ── */
-    .disk-bar-wrap {
-      background: var(--surface2);
-      border-radius: 4px;
-      height: 6px;
-      overflow: hidden;
-      margin-top: 6px;
-    }
-    .disk-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width .4s; }
-    .disk-breakdown { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
-    .disk-total { font-size: 22px; font-weight: 600; color: var(--text); }
-
-    /* ── Log panel ── */
+    /* ── Log panel ──────────────────────────────────── */
     .log-panel {
-      background: var(--bg);
       border-top: 1px solid var(--border);
+      background: var(--bg);
       display: flex;
       flex-direction: column;
-      height: 200px;
-    }
-
-    .log-header {
-      padding: 7px 14px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    #log-status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--muted);
+      height: 220px;
+      min-height: 40px;
+      overflow: hidden;
+      transition: height .22s cubic-bezier(.4,0,.2,1);
       flex-shrink: 0;
     }
-    #log-status-dot.running { background: var(--yellow); animation: pulse 1s infinite; }
-    #log-status-dot.done { background: var(--green); }
-    #log-status-dot.error { background: var(--red); }
+    .log-panel.collapsed { height: 40px !important; }
 
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .log-bar {
+      height: 40px;
+      min-height: 40px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+      user-select: none;
+      transition: background .1s;
+      border-bottom: 1px solid var(--border);
+    }
+    .log-bar:hover { background: rgba(255,255,255,.025); }
+
+    .log-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--text3);
+      flex-shrink: 0;
+      transition: background .3s;
+    }
+    .log-dot.running { background: var(--amber); animation: blink 1s infinite; }
+    .log-dot.done { background: var(--green); }
+    .log-dot.error { background: var(--red); }
+
+    #log-label { font-size: 12.5px; color: var(--text2); font-weight: 500; }
+
+    .log-bar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+    #transfer-stats {
+      display: none;
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--accent);
+      background: var(--accent-t);
+      border-radius: 5px;
+      padding: 2px 8px;
+    }
+
+    .log-chevron {
+      color: var(--text3);
+      transition: transform .22s cubic-bezier(.4,0,.2,1);
+    }
+    .log-panel.collapsed .log-chevron { transform: rotate(180deg); }
 
     #log-output {
       flex: 1;
       overflow-y: auto;
-      padding: 8px 14px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      line-height: 1.6;
-      color: #a0aec0;
+      padding: 10px 16px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      line-height: 1.7;
+      color: var(--text3);
     }
-    #log-output .log-error { color: var(--red); }
-    #log-output .log-success { color: var(--green); }
+    #log-output::-webkit-scrollbar { width: 3px; }
+    #log-output::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    .log-err { color: var(--red); }
+    .log-ok  { color: var(--green); }
 
-    /* ── Confirm modal ── */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.6);
+    /* ── Modal ──────────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5);
+      backdrop-filter: blur(6px);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 100;
+      z-index: 200;
     }
     .modal {
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
+      border: 1px solid var(--border2);
+      border-radius: 14px;
       padding: 24px;
-      width: 360px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      width: 380px;
+      box-shadow: var(--shadow-md);
     }
-    .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
-    .modal-body { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 20px; }
-    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .modal-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; margin-bottom: 8px; }
+    .modal-body { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 22px; }
+    .modal-foot { display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* ── Divider ────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 20px 0; }
   </style>
 </head>
 <body>
 
 <header>
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
-  <h1>WP Local Manager</h1>
-  <div id="status-bar">
-    <span>Running:</span>
-    <div id="active-sites-bar" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-      <span class="badge">none</span>
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+      <rect x="3" y="3" width="18" height="18" rx="4"/>
+      <path d="M3 9h18M9 21V9"/>
+    </svg>
+    <span class="logo-text">WP Local Manager</span>
+  </div>
+
+  <div class="header-sep"></div>
+
+  <div id="running-bar">
+    <span class="running-label">Running</span>
+    <div id="active-sites-bar">
+      <span class="pill none">None</span>
     </div>
-    <div id="ram-warning" style="display:none;background:var(--yellow);color:#0f1117;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:500;">⚠ 3+ sites running</div>
+    <div id="ram-warning">⚠ 3+ sites active — watch your RAM</div>
+  </div>
+
+  <div class="header-right">
+    <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+      <svg id="theme-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>
+    </button>
   </div>
 </header>
 
 <div class="layout">
   <div class="sidebar">
-    <div class="sidebar-header">
-      <input type="text" id="search" placeholder="Search sites…" />
-      <button class="btn ghost" onclick="openAddModal()">+ Add</button>
+    <div class="sidebar-top">
+      <input type="text" id="search" class="search-input" placeholder="Search…" />
+      <button class="btn btn-ghost btn-sm" onclick="openAddModal()">+ Add</button>
     </div>
     <div class="site-list" id="site-list"></div>
   </div>
 
   <div class="main">
-    <div class="site-detail" id="site-detail">
+    <div class="detail-scroll" id="site-detail">
       <div class="empty-state">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".2">
+          <rect x="3" y="3" width="18" height="18" rx="4"/>
+          <path d="M3 9h18M9 21V9"/>
+        </svg>
         <p>Select a site to get started</p>
       </div>
     </div>
 
-    <div class="log-panel">
-      <div class="log-header">
-        <div id="log-status-dot"></div>
+    <div class="log-panel" id="log-panel">
+      <div class="log-bar" onclick="toggleLog()">
+        <div class="log-dot" id="log-dot"></div>
         <span id="log-label">Ready</span>
-        <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
-          <span id="transfer-stats" style="display:none;font-size:11px;font-family:var(--font-mono);color:var(--accent);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;"></span>
-          <button id="cancel-btn" class="btn danger" style="display:none;padding:3px 8px;font-size:11px;" onclick="cancelProcess()">Cancel</button>
-          <button class="btn ghost" style="padding:3px 8px;font-size:11px;" onclick="clearLog()">Clear</button>
+        <div class="log-bar-right" onclick="event.stopPropagation()">
+          <span id="transfer-stats"></span>
+          <button id="cancel-btn" class="btn btn-danger btn-sm" style="display:none" onclick="cancelProcess()">Cancel</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearLog()">Clear</button>
+          <div class="log-chevron">
+            <svg width="11" height="7" viewBox="0 0 11 7" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 1l4.5 5 4.5-5"/></svg>
+          </div>
         </div>
       </div>
       <div id="log-output"></div>
@@ -387,14 +720,13 @@
   </div>
 </div>
 
-<!-- Confirm modal -->
-<div id="confirm-modal" class="modal-overlay" style="display:none;">
+<div id="confirm-overlay" class="overlay" style="display:none">
   <div class="modal">
     <div class="modal-title" id="confirm-title"></div>
     <div class="modal-body" id="confirm-body"></div>
-    <div class="modal-actions">
-      <button class="btn ghost" onclick="closeConfirm()">Cancel</button>
-      <button class="btn danger" id="confirm-ok-btn">Confirm</button>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok">Confirm</button>
     </div>
   </div>
 </div>
@@ -403,36 +735,56 @@
 let sites = [];
 let selectedSlug = null;
 let ws;
+let logCollapsed = false;
+let theme = localStorage.getItem("wplm-theme") || "dark";
 
-// ── Confirm modal ──────────────────────────────────────
-function showConfirm(title, body, okLabel, onConfirm) {
+// ── Theme ──────────────────────────────────────────────
+function applyTheme(t) {
+  theme = t;
+  document.documentElement.setAttribute("data-theme", t);
+  localStorage.setItem("wplm-theme", t);
+  const icon = document.getElementById("theme-icon");
+  if (t === "dark") {
+    icon.innerHTML = `<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>`;
+  } else {
+    icon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>`;
+  }
+}
+function toggleTheme() { applyTheme(theme === "dark" ? "light" : "dark"); }
+applyTheme(theme);
+
+// ── Log collapse ───────────────────────────────────────
+function toggleLog() {
+  logCollapsed = !logCollapsed;
+  document.getElementById("log-panel").classList.toggle("collapsed", logCollapsed);
+}
+
+// ── Modal ──────────────────────────────────────────────
+function showConfirm(title, body, okLabel, onOk) {
   document.getElementById("confirm-title").textContent = title;
   document.getElementById("confirm-body").textContent = body;
-  document.getElementById("confirm-ok-btn").textContent = okLabel;
-  document.getElementById("confirm-ok-btn").onclick = () => {
-    closeConfirm();
-    onConfirm();
-  };
-  document.getElementById("confirm-modal").style.display = "flex";
+  const okBtn = document.getElementById("confirm-ok");
+  okBtn.textContent = okLabel;
+  okBtn.onclick = () => { closeConfirm(); onOk(); };
+  document.getElementById("confirm-overlay").style.display = "flex";
 }
-
 function closeConfirm() {
-  document.getElementById("confirm-modal").style.display = "none";
+  document.getElementById("confirm-overlay").style.display = "none";
 }
-
-document.getElementById("confirm-modal").addEventListener("click", (e) => {
-  if (e.target === document.getElementById("confirm-modal")) closeConfirm();
+document.getElementById("confirm-overlay").addEventListener("click", e => {
+  if (e.target.id === "confirm-overlay") closeConfirm();
 });
 
 // ── WebSocket ──────────────────────────────────────────
 function connectWs() {
   ws = new WebSocket(`ws://${location.host}`);
-  ws.onmessage = (e) => {
+  ws.onmessage = e => {
     const msg = JSON.parse(e.data);
     if (msg.type === "log") appendLog(msg.text);
     if (msg.type === "start") {
+      if (logCollapsed) toggleLog();
       setLogStatus("running", msg.label);
-      document.getElementById("cancel-btn").style.display = "inline-block";
+      document.getElementById("cancel-btn").style.display = "inline-flex";
       document.getElementById("transfer-stats").style.display = "none";
     }
     if (msg.type === "done") {
@@ -440,46 +792,39 @@ function connectWs() {
         msg.label + (msg.code === 0 ? " — done" : " — failed"));
       document.getElementById("cancel-btn").style.display = "none";
       document.getElementById("transfer-stats").style.display = "none";
-      loadStatus();
-      loadSites();
+      loadStatus(); loadSites();
     }
   };
   ws.onclose = () => setTimeout(connectWs, 2000);
 }
 
 // ── Log ────────────────────────────────────────────────
-function parseRsyncProgress(text) {
+function parseRsync(text) {
   const m = text.match(/([\d,]+)\s+[\d]+%\s+([\d.]+\s*\S+\/s).*xfr#(\d+)/);
-  if (m) {
-    const bytes = parseInt(m[1].replace(/,/g, ''));
-    const speed = m[2].trim();
-    const files = parseInt(m[3]);
-    const transferred = bytes >= 1073741824
-      ? (bytes / 1073741824).toFixed(1) + ' GB'
-      : bytes >= 1048576
-        ? (bytes / 1048576).toFixed(1) + ' MB'
-        : (bytes / 1024).toFixed(0) + ' KB';
-    return `↓ ${speed} · ${transferred} · ${files} files`;
-  }
-  return null;
+  if (!m) return null;
+  const bytes = parseInt(m[1].replace(/,/g, ''));
+  const speed = m[2].trim();
+  const files = parseInt(m[3]);
+  const size = bytes >= 1073741824 ? (bytes/1073741824).toFixed(1)+' GB'
+             : bytes >= 1048576   ? (bytes/1048576).toFixed(1)+' MB'
+             : (bytes/1024).toFixed(0)+' KB';
+  return `↓ ${speed} · ${size} · ${files} files`;
 }
 
 function appendLog(text) {
   const el = document.getElementById("log-output");
-
-  const stats = parseRsyncProgress(text);
+  const stats = parseRsync(text);
   if (stats) {
-    document.getElementById("transfer-stats").style.display = "inline";
-    document.getElementById("transfer-stats").textContent = stats;
+    const s = document.getElementById("transfer-stats");
+    s.style.display = "inline";
+    s.textContent = stats;
     return;
   }
-
   if (text.match(/^\s+[\d,]+\s+\d+%\s+/)) return;
-
   const line = document.createElement("div");
   line.textContent = text.trimEnd();
-  if (text.includes("❌") || text.toLowerCase().includes("fatal") || text.startsWith("rsync: ") || text.startsWith("rsync error:")) line.className = "log-error";
-  if (text.includes("✅")) line.className = "log-success";
+  if (text.includes("❌") || text.toLowerCase().includes("fatal") || text.startsWith("rsync:")) line.className = "log-err";
+  else if (text.includes("✅")) line.className = "log-ok";
   el.appendChild(line);
   el.scrollTop = el.scrollHeight;
 }
@@ -490,14 +835,11 @@ function clearLog() {
 }
 
 function setLogStatus(state, label) {
-  document.getElementById("log-status-dot").className = state;
+  document.getElementById("log-dot").className = `log-dot ${state}`;
   document.getElementById("log-label").textContent = label;
 }
 
-async function cancelProcess() {
-  await api("POST", "/cancel");
-  document.getElementById("cancel-btn").style.display = "none";
-}
+async function cancelProcess() { await api("POST", "/cancel"); }
 
 // ── API ────────────────────────────────────────────────
 async function api(method, path, body) {
@@ -509,52 +851,113 @@ async function api(method, path, body) {
   return r.json();
 }
 
+// ── Status ─────────────────────────────────────────────
 async function loadStatus() {
   const s = await api("GET", "/status");
   const active = s.active_sites || [];
   const bar = document.getElementById("active-sites-bar");
 
   if (active.length === 0) {
-    bar.innerHTML = `<span class="badge">none</span>`;
+    bar.innerHTML = `<span class="pill none">None</span>`;
   } else {
     bar.innerHTML = active.map(slug =>
-      `<a href="https://${slug}.ddev.site" target="_blank" class="badge active" style="cursor:pointer;text-decoration:none;">${slug} ↗</a>`
+      `<a href="https://${slug}.ddev.site" target="_blank" class="pill running">${slug}</a>`
     ).join("");
   }
 
-  document.getElementById("ram-warning").style.display = active.length >= 3 ? "block" : "none";
+  const warn = document.getElementById("ram-warning");
+  warn.style.display = active.length >= 3 ? "inline-flex" : "none";
 }
 
+// ── Sites ──────────────────────────────────────────────
 async function loadSites() {
   sites = await api("GET", "/sites");
   renderSiteList();
   if (selectedSlug) renderDetail(selectedSlug);
 }
 
-// ── Render ─────────────────────────────────────────────
+function sortSites(list) {
+  return [...list].sort((a, b) => {
+    if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+    const ta = a.last_synced ? new Date(a.last_synced).getTime() : 0;
+    const tb = b.last_synced ? new Date(b.last_synced).getTime() : 0;
+    return tb - ta;
+  });
+}
+
+function faviconEl(domain, size) {
+  if (!domain) return null;
+  const img = document.createElement("img");
+  img.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=${size}`;
+  img.width = size; img.height = size;
+  img.onerror = () => { img.style.display = "none"; };
+  return img;
+}
+
+function letterIcon(label, sizePx) {
+  return `<span class="site-fav-letter" style="font-size:${sizePx}px">${(label||"?")[0]}</span>`;
+}
+
+// ── Render site list ───────────────────────────────────
 function renderSiteList() {
   const q = document.getElementById("search").value.toLowerCase();
   const filtered = sites.filter(s =>
     s.slug.includes(q) ||
-    (s.label || "").toLowerCase().includes(q) ||
-    (s.domain || "").includes(q)
+    (s.label||"").toLowerCase().includes(q) ||
+    (s.domain||"").includes(q)
   );
+  const sorted = sortSites(filtered);
+  const list = document.getElementById("site-list");
+  list.innerHTML = "";
 
-  document.getElementById("site-list").innerHTML = filtered.map(s => `
-    <div class="site-item ${s.isActive ? "is-active" : ""} ${s.slug === selectedSlug ? "selected" : ""}"
-         onclick="selectSite('${s.slug}')">
-      <div class="site-name">${s.label || s.slug}</div>
-      <div class="site-domain">${s.domain || ""}</div>
-      <div class="badges">
-        ${s.isActive    ? '<span class="tag green">running</span>' : ""}
-        ${s.isDdevSetup ? '<span class="tag blue">ddev</span>' : '<span class="tag red">no ddev</span>'}
-        ${s.isSynced    ? '<span class="tag blue">synced</span>' : ""}
-        ${s.hasDb       ? '<span class="tag green">db</span>' : ""}
-        ${s.r2_offload  ? '<span class="tag yellow">r2</span>' : ""}
-        <span class="tag">php ${s.php_version || "?"}</span>
-      </div>
-    </div>
-  `).join("");
+  sorted.forEach(s => {
+    const div = document.createElement("div");
+    div.className = `site-item${s.isActive ? " is-running" : ""}${s.slug === selectedSlug ? " selected" : ""}`;
+    div.onclick = () => selectSite(s.slug);
+
+    // icon
+    const fav = document.createElement("div");
+    fav.className = "site-fav";
+    if (s.domain) {
+      const img = document.createElement("img");
+      img.src = `https://www.google.com/s2/favicons?domain=${s.domain}&sz=32`;
+      img.width = 16; img.height = 16;
+      img.onerror = () => { fav.innerHTML = letterIcon(s.label, 13); };
+      fav.appendChild(img);
+    } else {
+      fav.innerHTML = letterIcon(s.label, 13);
+    }
+
+    // info
+    const info = document.createElement("div");
+    info.className = "site-info";
+    const name = document.createElement("div");
+    name.className = "site-name";
+    name.textContent = s.label || s.slug;
+    const sub = document.createElement("div");
+    sub.className = "site-sub";
+    sub.textContent = s.domain || s.slug;
+    info.appendChild(name);
+    info.appendChild(sub);
+
+    // status
+    const status = document.createElement("div");
+    status.className = "site-status";
+    if (s.isActive) {
+      const dot = document.createElement("div");
+      dot.className = "dot-running";
+      status.appendChild(dot);
+    }
+    const chip = document.createElement("div");
+    chip.className = "php-chip";
+    chip.textContent = `php ${s.php_version || "?"}`;
+    status.appendChild(chip);
+
+    div.appendChild(fav);
+    div.appendChild(info);
+    div.appendChild(status);
+    list.appendChild(div);
+  });
 }
 
 function selectSite(slug) {
@@ -563,227 +966,250 @@ function selectSite(slug) {
   renderDetail(slug);
 }
 
+// ── Render detail ──────────────────────────────────────
 function renderDetail(slug) {
   const s = sites.find(x => x.slug === slug);
   if (!s) return;
-
   const localUrl = `https://${s.slug}.ddev.site`;
 
-  // Async data loaded after render
-  setTimeout(() => loadDisk(slug), 50);
-
-  document.getElementById("site-detail").innerHTML = `
+  const el = document.getElementById("site-detail");
+  el.innerHTML = `
     <div class="detail-header">
-      <div>
-        <div class="detail-title">${s.label || s.slug}</div>
-        <div class="detail-domain">${s.domain || ""}</div>
-        ${s.isDdevSetup ? `<div class="detail-url"><a href="${localUrl}" target="_blank" style="color:var(--accent)">${localUrl} ↗</a></div>` : ""}
+      <div class="detail-left">
+        <div class="detail-icon" id="detail-icon-${slug}">
+          <span class="detail-icon-letter">${(s.label||s.slug)[0]}</span>
+        </div>
+        <div>
+          <div class="detail-title">${s.label || s.slug}</div>
+          <div class="detail-domain">${s.domain || ""}</div>
+          ${s.isDdevSetup ? `<div class="detail-local"><a href="${localUrl}" target="_blank">${localUrl} ↗</a></div>` : ""}
+        </div>
       </div>
       <div class="action-bar">
         ${!s.isDdevSetup
-          ? `<button class="btn warning" onclick="setupSite('${slug}')">⚙ Setup DDEV</button>`
+          ? `<button class="btn btn-warning" onclick="setupSite('${slug}')">Setup DDEV</button>`
           : s.isActive
-            ? `<button class="btn danger" onclick="stopSite('${slug}')">⏹ Stop</button>`
-            : `<button class="btn" onclick="swapSite('${slug}')">▶ Start</button>`
+            ? `<button class="btn btn-danger" onclick="stopSite('${slug}')">Stop</button>`
+            : `<button class="btn" onclick="swapSite('${slug}')">Start</button>`
         }
-        ${s.isDdevSetup && s.isActive ? `<button class="btn ghost" onclick="autoLogin('${slug}')">⚡ Admin</button>` : ""}
+        ${s.isDdevSetup && s.isActive ? `<button class="btn btn-ghost" onclick="autoLogin('${slug}')">Open Admin</button>` : ""}
       </div>
     </div>
 
-    <div class="sync-section">
-      <div class="card-label" style="margin-bottom:10px">Sync from remote</div>
-      <div class="sync-row">
-        <div style="font-size:13px;color:var(--muted)">
-          ${s.last_synced ? `Files: ${new Date(s.last_synced).toLocaleString()}` : "Never synced"}
-          ${s.db_synced ? ` · DB: ${new Date(s.db_synced).toLocaleString()}` : ""}
+    <div class="section">
+      <div class="section-title">Sync from remote</div>
+      <div class="sync-card">
+        <div class="sync-times">
+          <div class="sync-time-row">
+            <span class="sync-time-label">Files</span>
+            <span class="sync-time-val">${s.last_synced ? new Date(s.last_synced).toLocaleString() : "Never synced"}</span>
+          </div>
+          <div class="sync-time-row">
+            <span class="sync-time-label">DB</span>
+            <span class="sync-time-val">${s.db_synced ? new Date(s.db_synced).toLocaleString() : "Never synced"}</span>
+          </div>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn ghost" onclick="syncSite('${slug}', false)">↻ Files</button>
-          <button class="btn ghost" onclick="syncSite('${slug}', true)">↻ Files + DB</button>
-          ${s.hasDb && s.isDdevSetup ? `<button class="btn ghost" onclick="confirmReimport('${slug}')">↺ Reimport DB</button>` : ""}
+        <div class="sync-actions">
+          <button class="btn btn-ghost btn-sm" onclick="syncSite('${slug}', false)">Sync Files</button>
+          <button class="btn btn-ghost btn-sm" onclick="syncSite('${slug}', true)">Sync + DB</button>
+          ${s.hasDb && s.isDdevSetup ? `<button class="btn btn-ghost btn-sm" onclick="confirmReimport('${slug}')">Reimport DB</button>` : ""}
         </div>
       </div>
     </div>
 
-    <div class="grid-2" style="margin-bottom:0;">
+    <div class="config-grid">
 
-      <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;flex-direction:column;gap:16px;">
 
-        <div class="card" style="margin-bottom:0;">
-          <div class="card-label">Notes</div>
-          <div class="field" style="margin-bottom:0;">
-            <textarea
-              id="notes-field"
-              placeholder="Client contacts, special config, gotchas…"
-              onblur="updateSite('${slug}', 'notes', this.value)"
-            >${s.notes || ""}</textarea>
+        <div class="card">
+          <div class="card-head">Notes</div>
+          <div class="card-body">
+            <div class="field" style="margin-bottom:0">
+              <textarea
+                placeholder="Client contacts, special config, gotchas…"
+                onblur="updateSite('${slug}', 'notes', this.value)"
+              >${s.notes || ""}</textarea>
+            </div>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:0;" id="disk-card-${slug}">
-          <div class="card-label">Disk Usage</div>
-          <div id="disk-content-${slug}" style="color:var(--muted);font-size:12px;">Loading…</div>
+        <div class="card" id="disk-card-${slug}">
+          <div class="card-head">Disk Usage</div>
+          <div class="card-body">
+            <div id="disk-content-${slug}" style="color:var(--text3);font-size:13px;">Loading…</div>
+          </div>
         </div>
 
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;flex-direction:column;gap:16px;">
 
-        <div class="card" style="margin-bottom:0;">
-          <div class="card-label">Versions</div>
-          <div class="field">
-            <label>PHP Version</label>
-            <select onchange="updateSite('${slug}', 'php_version', this.value)">
-              ${["7.4","8.0","8.1","8.2","8.3"].map(v =>
-                `<option ${s.php_version === v ? "selected" : ""}>${v}</option>`
-              ).join("")}
-            </select>
-          </div>
-          <div class="field">
-            <label>WP Version</label>
-            <input type="text" value="${s.wp_version || ""}"
-              onblur="updateSite('${slug}', 'wp_version', this.value)" />
-          </div>
-          <div class="field" style="margin-bottom:0;">
-            <label>Table Prefix</label>
-            <input type="text" value="${s.table_prefix || "wp_"}"
-              onblur="updateSite('${slug}', 'table_prefix', this.value)" />
+        <div class="card">
+          <div class="card-head">Versions</div>
+          <div class="card-body">
+            <div class="field">
+              <label>PHP</label>
+              <select onchange="updateSite('${slug}', 'php_version', this.value)">
+                ${["7.4","8.0","8.1","8.2","8.3"].map(v =>
+                  `<option ${s.php_version===v?"selected":""}>${v}</option>`
+                ).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label>WordPress</label>
+              <input type="text" value="${s.wp_version || ""}"
+                onblur="updateSite('${slug}', 'wp_version', this.value)" />
+            </div>
+            <div class="field">
+              <label>Table Prefix</label>
+              <input type="text" value="${s.table_prefix || "wp_"}"
+                onblur="updateSite('${slug}', 'table_prefix', this.value)" />
+            </div>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:0;">
-          <div class="card-label">Git Theme</div>
-          <div class="field">
-            <label>Remote URL</label>
-            <input type="text" value="${s.git_remote || ""}"
-              placeholder="git@github.com:agency/theme.git"
-              onblur="updateSite('${slug}', 'git_remote', this.value)" />
-          </div>
-          <div class="field">
-            <label>Theme Folder</label>
-            <input type="text" value="${s.theme_folder || ""}"
-              placeholder="client-theme"
-              onblur="updateSite('${slug}', 'theme_folder', this.value)" />
-          </div>
-          <div class="toggle-row" style="margin-bottom:0;">
-            <span>R2 Uploads Offload</span>
-            <div class="toggle ${s.r2_offload ? "on" : ""}"
-              onclick="updateSite('${slug}', 'r2_offload', ${!s.r2_offload})"></div>
+        <div class="card">
+          <div class="card-head">Theme</div>
+          <div class="card-body">
+            <div class="field">
+              <label>Git Remote</label>
+              <input type="text" value="${s.git_remote || ""}"
+                placeholder="git@github.com:agency/theme.git"
+                onblur="updateSite('${slug}', 'git_remote', this.value)" />
+            </div>
+            <div class="field">
+              <label>Theme Folder</label>
+              <input type="text" value="${s.theme_folder || ""}"
+                placeholder="client-theme"
+                onblur="updateSite('${slug}', 'theme_folder', this.value)" />
+            </div>
+            <div class="toggle-row">
+              <span>R2 Uploads Offload</span>
+              <div class="toggle ${s.r2_offload ? "on" : ""}"
+                onclick="updateSite('${slug}', 'r2_offload', ${!s.r2_offload})"></div>
+            </div>
           </div>
         </div>
 
       </div>
     </div>
 
-    <div class="card" style="margin-top:14px;">
-      <div class="card-label">Host / SSH</div>
-      <div class="grid-2" style="margin:0;gap:12px;">
-        <div class="field">
-          <label>Provider</label>
-          <select onchange="updateHost('${slug}', 'provider', this.value)">
-            ${["whc","generic","runcloud","rocketnet"].map(p =>
-              `<option ${(s.host?.provider||"generic")===p?"selected":""}>${p}</option>`
-            ).join("")}
-          </select>
-        </div>
-        <div class="field">
-          <label>SSH User</label>
-          <input type="text" value="${s.host?.ssh_user||""}"
-            onblur="updateHost('${slug}', 'ssh_user', this.value)" />
-        </div>
-        <div class="field">
-          <label>SSH Host / IP</label>
-          <input type="text" value="${s.host?.ssh_host||""}"
-            onblur="updateHost('${slug}', 'ssh_host', this.value)" />
-        </div>
-        <div class="field">
-          <label>SSH Port</label>
-          <input type="number" value="${s.host?.ssh_port||22}"
-            onblur="updateHost('${slug}', 'ssh_port', parseInt(this.value))" />
-        </div>
-        <div class="field" style="grid-column:1/-1">
-          <label>Remote Site Path</label>
-          <input type="text" value="${s.host?.site_path||""}"
-            placeholder="/home/user/public_html"
-            onblur="updateHost('${slug}', 'site_path', this.value)" />
+    <div class="divider"></div>
+
+    <div class="section" style="margin-bottom:0">
+      <div class="section-title">Host &amp; SSH</div>
+      <div class="card-full">
+        <div class="card-body" style="padding-top:16px;">
+          <div class="config-grid" style="gap:12px;">
+            <div class="field">
+              <label>Provider</label>
+              <select onchange="updateHost('${slug}', 'provider', this.value)">
+                ${["whc","generic","runcloud","rocketnet"].map(p =>
+                  `<option ${(s.host?.provider||"generic")===p?"selected":""}>${p}</option>`
+                ).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label>SSH User</label>
+              <input type="text" value="${s.host?.ssh_user||""}"
+                onblur="updateHost('${slug}', 'ssh_user', this.value)" />
+            </div>
+            <div class="field">
+              <label>Host / IP</label>
+              <input type="text" value="${s.host?.ssh_host||""}"
+                onblur="updateHost('${slug}', 'ssh_host', this.value)" />
+            </div>
+            <div class="field">
+              <label>Port</label>
+              <input type="number" value="${s.host?.ssh_port||22}"
+                onblur="updateHost('${slug}', 'ssh_port', parseInt(this.value))" />
+            </div>
+            <div class="field" style="grid-column:1/-1">
+              <label>Remote Path</label>
+              <input type="text" value="${s.host?.site_path||""}"
+                placeholder="/home/user/public_html"
+                onblur="updateHost('${slug}', 'site_path', this.value)" />
+            </div>
+          </div>
         </div>
       </div>
     </div>
   `;
+
+  // Load favicon for detail icon
+  if (s.domain) {
+    const icon = document.getElementById(`detail-icon-${slug}`);
+    const img = new Image();
+    img.onload = () => {
+      icon.innerHTML = "";
+      img.width = 22; img.height = 22;
+      icon.appendChild(img);
+    };
+    img.src = `https://www.google.com/s2/favicons?domain=${s.domain}&sz=64`;
+  }
+
+  setTimeout(() => loadDisk(slug), 60);
 }
 
 // ── Disk usage ─────────────────────────────────────────
 async function loadDisk(slug) {
   const el = document.getElementById(`disk-content-${slug}`);
   if (!el) return;
-  el.innerHTML = '<span style="color:var(--muted);font-size:12px;">Calculating…</span>';
+  el.innerHTML = `<span style="color:var(--text3)">Calculating…</span>`;
   const data = await api("GET", `/sites/${slug}/disk`);
   if (!data.total) {
-    el.innerHTML = '<span style="color:var(--muted);font-size:12px;">Not synced yet</span>';
+    el.innerHTML = `<span style="color:var(--text3)">Not synced yet</span>`;
     return;
   }
   el.innerHTML = `
-    <div class="disk-total">${data.total}</div>
-    <div class="disk-breakdown">
-      ${data.breakdown.map(b => `<span>${b.label}: <strong style="color:var(--text)">${b.size}</strong></span>`).join(" · ")}
+    <div class="disk-num">${data.total}</div>
+    <div class="disk-parts">
+      ${data.breakdown.map(b => `<span>${b.label}: <strong>${b.size}</strong></span>`).join(" · ")}
     </div>
   `;
 }
 
-
 // ── Actions ────────────────────────────────────────────
 async function setupSite(slug) {
-  appendLog(`\n▶ Setting up DDEV for: ${slug}\n`);
+  appendLog(`\n▶ Setting up: ${slug}\n`);
   await api("POST", `/sites/${slug}/setup`);
 }
-
 async function syncSite(slug, withDb) {
-  appendLog(`\n▶ Syncing: ${slug}${withDb ? " (with DB)" : ""}\n`);
+  appendLog(`\n▶ Syncing: ${slug}${withDb ? " (+ DB)" : ""}\n`);
   await api("POST", `/sites/${slug}/sync`, { db: withDb });
 }
-
 async function swapSite(slug) {
   appendLog(`\n▶ Starting: ${slug}\n`);
   await api("POST", `/sites/${slug}/swap`);
 }
-
 async function stopSite(slug) {
   appendLog(`\n▶ Stopping: ${slug}\n`);
   await api("POST", `/sites/${slug}/stop`);
 }
-
 function confirmReimport(slug) {
   showConfirm(
-    "Reimport Database?",
-    `This will wipe the local database for "${slug}" and reimport from db.sql. Any local DB changes will be lost.`,
+    "Reimport database?",
+    `This will wipe the local database for "${slug}" and reimport from db.sql. Any local changes will be lost.`,
     "Reimport",
     () => reimportDb(slug)
   );
 }
-
 async function reimportDb(slug) {
   appendLog(`\n▶ Reimporting DB: ${slug}\n`);
   await api("POST", `/sites/${slug}/reimport-db`);
 }
-
-
 async function autoLogin(slug) {
   const data = await api("POST", `/sites/${slug}/autologin`);
-  if (data.url) {
-    window.open(data.url, "_blank");
-  } else {
-    appendLog(`\n❌ Auto-login failed: ${data.error}\n`);
-  }
+  if (data.url) window.open(data.url, "_blank");
+  else appendLog(`\n❌ Auto-login failed: ${data.error}\n`);
 }
-
 async function updateSite(slug, key, value) {
   await api("PUT", `/sites/${slug}`, { [key]: value });
   await loadSites();
 }
-
 async function updateHost(slug, key, value) {
   const s = sites.find(x => x.slug === slug);
-  await api("PUT", `/sites/${slug}`, { host: { ...(s?.host || {}), [key]: value } });
+  await api("PUT", `/sites/${slug}`, { host: { ...(s?.host||{}), [key]: value } });
 }
 
 function openAddModal() {
@@ -791,23 +1217,11 @@ function openAddModal() {
   if (!slug) return;
   const domain = prompt("Domain (e.g. clientname.com):");
   api("POST", "/sites", {
-    slug,
-    label: slug,
-    domain: domain || "",
-    php_version: "8.2",
-    wp_version: "6.5",
-    table_prefix: "wp_",
-    git_remote: "",
-    theme_folder: "",
-    r2_offload: false,
-    notes: "",
-    host: {
-      provider: "generic",
-      ssh_user: "",
-      ssh_host: "",
-      ssh_port: 22,
-      site_path: `/home/${slug}/public_html`
-    }
+    slug, label: slug, domain: domain||"",
+    php_version: "8.2", wp_version: "6.5", table_prefix: "wp_",
+    git_remote: "", theme_folder: "", r2_offload: false, notes: "",
+    host: { provider: "generic", ssh_user: "", ssh_host: "", ssh_port: 22,
+            site_path: `/home/${slug}/public_html` }
   }).then(() => loadSites());
 }
 
