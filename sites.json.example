@@ -1,0 +1,38 @@
+[
+  {
+    "slug": "client-alpha",
+    "label": "Client Alpha — E-commerce",
+    "domain": "clientalpha.com",
+    "php_version": "8.2",
+    "wp_version": "6.5",
+    "table_prefix": "wp_",
+    "git_remote": "git@github-work:youragency/clientalpha-theme.git",
+    "theme_folder": "clientalpha-theme",
+    "r2_offload": true,
+    "host": {
+      "provider": "whc",
+      "ssh_user": "clientalpha",
+      "ssh_host": "whc-prod",
+      "ssh_port": 22,
+      "site_path": "/home/clientalpha/public_html"
+    }
+  },
+  {
+    "slug": "client-beta",
+    "label": "Client Beta — Corporate",
+    "domain": "clientbeta.com",
+    "php_version": "8.1",
+    "wp_version": "6.4",
+    "table_prefix": "wp_",
+    "git_remote": "",
+    "theme_folder": "",
+    "r2_offload": false,
+    "host": {
+      "provider": "whc",
+      "ssh_user": "clientbeta",
+      "ssh_host": "whc-prod",
+      "ssh_port": 22,
+      "site_path": "/home/clientbeta/public_html"
+    }
+  }
+]
