@@ -1017,6 +1017,22 @@ function renderDetail(slug) {
       </div>
     </div>
 
+    ${s.isActive ? `
+    <div class="section">
+      <div class="section-title">Dev Tools</div>
+      <div class="sync-card" style="gap:12px;flex-wrap:wrap;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <a href="https://${slug}.ddev.site:8026" target="_blank" class="btn btn-ghost btn-sm">📬 Mailpit</a>
+
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-left:auto;">
+          <button class="btn btn-ghost btn-sm" onclick="takeSnapshot('${slug}')">📸 Save snapshot</button>
+          <button class="btn btn-ghost btn-sm" id="restore-btn-${slug}" onclick="showRestoreModal('${slug}')">↩ Restore</button>
+        </div>
+      </div>
+    </div>
+    ` : ""}
+
     <div class="config-grid">
 
       <div style="display:flex;flex-direction:column;gap:16px;">
@@ -1226,6 +1242,51 @@ function openAddModal() {
 }
 
 document.getElementById("search").addEventListener("input", renderSiteList);
+
+
+
+// ── Snapshots ───────────────────────────────────────────
+async function takeSnapshot(slug) {
+  appendLog(`\n▶ Saving snapshot: ${slug}\n`);
+  await api("POST", `/sites/${slug}/snapshot`, {});
+}
+
+async function showRestoreModal(slug) {
+  const data = await api("GET", `/sites/${slug}/snapshots`);
+  const snaps = data.snapshots || [];
+
+  if (snaps.length === 0) {
+    showConfirm(
+      "Restore latest snapshot?",
+      `Restore the most recent snapshot for "${slug}". The current database will be replaced.`,
+      "Restore",
+      () => restoreSnapshot(slug, null)
+    );
+    return;
+  }
+
+  // Build a simple select list in the confirm modal
+  const list = snaps.slice().reverse().map((s, i) =>
+    `<option value="${typeof s === "string" ? s : s.name}">${typeof s === "string" ? s : s.name}</option>`
+  ).join("");
+
+  document.getElementById("confirm-title").textContent = "Restore snapshot";
+  document.getElementById("confirm-body").innerHTML =
+    `<div style="margin-bottom:12px;color:var(--text2)">Choose a snapshot to restore for <strong>${slug}</strong>. The current database will be replaced.</div>` +
+    `<select id="snapshot-select" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:7px 10px;font-size:13px;font-family:var(--font);outline:none;">${list}</select>`;
+  document.getElementById("confirm-ok").textContent = "Restore";
+  document.getElementById("confirm-ok").onclick = () => {
+    const name = document.getElementById("snapshot-select")?.value || null;
+    closeConfirm();
+    restoreSnapshot(slug, name);
+  };
+  document.getElementById("confirm-overlay").style.display = "flex";
+}
+
+async function restoreSnapshot(slug, name) {
+  appendLog(`\n▶ Restoring snapshot${name ? ": " + name : " (latest)"} for ${slug}\n`);
+  await api("POST", `/sites/${slug}/snapshot/restore`, { name });
+}
 
 // ── Init ───────────────────────────────────────────────
 connectWs();

@@ -70,6 +70,7 @@ function isDdevSetup(slug) {
   return fs.existsSync(path.join(SITES_PATH, slug, ".ddev", "config.yaml"));
 }
 
+
 function withStatus(site) {
   return {
     ...site,
@@ -265,6 +266,48 @@ exit;
   } catch (e) {
     res.status(500).json({ error: "Failed to create login file" });
   }
+});
+
+
+// -------------------------------------------------------
+// REST API — Snapshots
+// -------------------------------------------------------
+
+app.get("/api/sites/:slug/snapshots", (req, res) => {
+  const { slug } = req.params;
+  if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
+  const siteDir = path.join(SITES_PATH, slug);
+  exec(`cd "${siteDir}" && ddev snapshot --list --json 2>/dev/null`, { timeout: 10000 }, (err, stdout) => {
+    try {
+      const data = JSON.parse(stdout);
+      // ddev returns array of snapshot names or objects
+      const snapshots = Array.isArray(data) ? data : (data.snapshots || []);
+      res.json({ snapshots });
+    } catch {
+      res.json({ snapshots: [] });
+    }
+  });
+});
+
+app.post("/api/sites/:slug/snapshot", (req, res) => {
+  const { slug } = req.params;
+  const { name } = req.body;
+  if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
+  const siteDir = path.join(SITES_PATH, slug);
+  const nameFlag = name ? ` --name="${name}"` : "";
+  const cmd = `ddev snapshot${nameFlag}`;
+  runScript(["-c", `cd "${siteDir}" && ${cmd}`], `Snapshot: ${slug}`);
+  res.json({ ok: true });
+});
+
+app.post("/api/sites/:slug/snapshot/restore", (req, res) => {
+  const { slug } = req.params;
+  const { name } = req.body;
+  if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
+  const siteDir = path.join(SITES_PATH, slug);
+  const nameArg = name ? ` "${name}"` : " --latest";
+  runScript(["-c", `cd "${siteDir}" && ddev snapshot restore${nameArg}`], `Restoring snapshot: ${slug}`);
+  res.json({ ok: true });
 });
 
 // -------------------------------------------------------
