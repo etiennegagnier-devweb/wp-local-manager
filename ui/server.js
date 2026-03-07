@@ -1,11 +1,11 @@
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
-const { spawn } = require("child_process");
+const { spawn, exec } = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-// Load .env from project root (one level up from ui/)
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
 const app = express();
@@ -17,7 +17,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const SITES_PATH = process.env.SITES_PATH;
 const SCRIPTS_PATH = path.join(__dirname, "../scripts");
-const SITES_FILE = path.join(__dirname, "../sites.json");
+const SITES_FILE = process.env.SITES_FILE || path.join(__dirname, "../sites.json");
 const ENV_FILE = path.join(__dirname, "../.env");
 
 if (!SITES_PATH) {
@@ -51,8 +51,11 @@ function readEnv() {
   return result;
 }
 
-function getActiveSite() {
-  return readEnv().ACTIVE_SITE || null;
+function getActiveSites() {
+  const env = readEnv();
+  // Support both old ACTIVE_SITE and new ACTIVE_SITES
+  const val = env.ACTIVE_SITES || env.ACTIVE_SITE || "";
+  return val ? val.split(",").map(s => s.trim()).filter(Boolean) : [];
 }
 
 function isSynced(slug) {
@@ -70,7 +73,7 @@ function isDdevSetup(slug) {
 function withStatus(site) {
   return {
     ...site,
-    isActive: site.slug === getActiveSite(),
+    isActive: getActiveSites().includes(site.slug),
     isSynced: isSynced(site.slug),
     hasDb: hasDb(site.slug),
     isDdevSetup: isDdevSetup(site.slug),
@@ -111,7 +114,7 @@ function runScript(args, label) {
     broadcast({ type: "done", code, label });
   });
 
-  activeProcess.on("error", (err) => {
+  activeProcess.on("error", () => {
     activeProcess = null;
     broadcast({ type: "done", code: 1, label });
   });
@@ -120,7 +123,7 @@ function runScript(args, label) {
 }
 
 // -------------------------------------------------------
-// REST API
+// REST API — Sites CRUD
 // -------------------------------------------------------
 
 app.get("/api/sites", (req, res) => {
@@ -155,7 +158,10 @@ app.put("/api/sites/:slug", (req, res) => {
   res.json({ ok: true, site: withStatus(sites[idx]) });
 });
 
-// Setup DDEV for a site
+// -------------------------------------------------------
+// REST API — Actions
+// -------------------------------------------------------
+
 app.post("/api/sites/:slug/setup", (req, res) => {
   const { slug } = req.params;
   if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
@@ -163,7 +169,6 @@ app.post("/api/sites/:slug/setup", (req, res) => {
   res.json({ ok: true });
 });
 
-// Sync (rsync wp-content from remote)
 app.post("/api/sites/:slug/sync", (req, res) => {
   const { slug } = req.params;
   const { db, force } = req.body;
@@ -175,7 +180,6 @@ app.post("/api/sites/:slug/sync", (req, res) => {
   res.json({ ok: true });
 });
 
-// Swap active site
 app.post("/api/sites/:slug/swap", (req, res) => {
   const { slug } = req.params;
   if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
@@ -183,7 +187,13 @@ app.post("/api/sites/:slug/swap", (req, res) => {
   res.json({ ok: true });
 });
 
-// Force reimport DB
+app.post("/api/sites/:slug/stop", (req, res) => {
+  const { slug } = req.params;
+  if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
+  runScript([`${SCRIPTS_PATH}/stop-site.sh`, slug], `Stopping ${slug}`);
+  res.json({ ok: true });
+});
+
 app.post("/api/sites/:slug/reimport-db", (req, res) => {
   const { slug } = req.params;
   if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
@@ -191,7 +201,76 @@ app.post("/api/sites/:slug/reimport-db", (req, res) => {
   res.json({ ok: true });
 });
 
-// Cancel active process
+// -------------------------------------------------------
+// REST API — Disk usage
+// -------------------------------------------------------
+
+app.get("/api/sites/:slug/disk", (req, res) => {
+  const { slug } = req.params;
+  if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
+
+  const siteDir = path.join(SITES_PATH, slug);
+  if (!fs.existsSync(siteDir)) return res.json({ total: null, breakdown: [] });
+
+  exec(
+    `du -sh "${siteDir}" "${siteDir}/wp-content" "${siteDir}/db.sql" 2>/dev/null`,
+    (err, stdout) => {
+      const lines = stdout.trim().split("\n").filter(Boolean);
+      const parse = (line) => {
+        const [size, ...parts] = line.split("\t");
+        return { size: size.trim(), path: parts.join("\t").trim() };
+      };
+      const rows = lines.map(parse);
+      const total = rows.find(r => r.path === siteDir)?.size || null;
+      const breakdown = rows
+        .filter(r => r.path !== siteDir)
+        .map(r => ({ label: path.basename(r.path), size: r.size }));
+      res.json({ total, breakdown });
+    }
+  );
+});
+
+// -------------------------------------------------------
+// REST API — Auto login
+// -------------------------------------------------------
+
+app.post("/api/sites/:slug/autologin", (req, res) => {
+  const { slug } = req.params;
+  if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
+
+  const siteDir = path.join(SITES_PATH, slug);
+  if (!fs.existsSync(path.join(siteDir, ".ddev", "config.yaml"))) {
+    return res.status(400).json({ error: "DDEV not set up" });
+  }
+
+  const token = crypto.randomBytes(16).toString("hex");
+  const filename = `wplm-login-${token}.php`;
+  const phpCode = `<?php
+require_once(dirname(__FILE__) . '/wp-load.php');
+$users = get_users(array('role' => 'administrator', 'number' => 1));
+if (!empty($users)) {
+  wp_set_auth_cookie($users[0]->ID, true);
+  unlink(__FILE__);
+  wp_redirect(admin_url());
+  exit;
+}
+unlink(__FILE__);
+wp_redirect(home_url());
+exit;
+`;
+
+  try {
+    fs.writeFileSync(path.join(siteDir, filename), phpCode);
+    res.json({ url: `https://${slug}.ddev.site/${filename}` });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to create login file" });
+  }
+});
+
+// -------------------------------------------------------
+// REST API — Cancel / Status
+// -------------------------------------------------------
+
 app.post("/api/cancel", (req, res) => {
   if (activeProcess) {
     activeProcess.kill("SIGTERM");
@@ -203,16 +282,10 @@ app.post("/api/cancel", (req, res) => {
   }
 });
 
-// Status
 app.get("/api/status", (req, res) => {
-  const env = readEnv();
-  const active = env.ACTIVE_SITE || null;
-  const site = active ? getSite(active) : null;
+  const activeSites = getActiveSites();
   res.json({
-    active_site: active,
-    php_version: site?.php_version || null,
-    wp_version: site?.wp_version || null,
-    local_url: active ? `https://${active}.ddev.site` : null,
+    active_sites: activeSites,
     busy: activeProcess !== null,
   });
 });
@@ -231,4 +304,5 @@ const PORT = process.env.UI_PORT || 3000;
 server.listen(PORT, () => {
   console.log(`WP Local Manager UI running at http://localhost:${PORT}`);
   console.log(`SITES_PATH: ${SITES_PATH}`);
+  console.log(`SITES_FILE: ${SITES_FILE}`);
 });

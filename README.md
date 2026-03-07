@@ -244,15 +244,21 @@ UI available at **http://localhost:3000**
 # 3. Sync files and DB from remote server
 ./scripts/sync-site.sh my-client --db
 
-# 4. Activate
+# 4. Start
 ./scripts/swap-site.sh my-client
 # → https://my-client.ddev.site
 ```
 
-### Subsequent times (site already in sites.json)
+### Start an already-setup site
 
 ```bash
 ./scripts/swap-site.sh my-client
+```
+
+### Stop a running site
+
+```bash
+./scripts/stop-site.sh my-client
 ```
 
 ---
@@ -285,9 +291,14 @@ UI available at **http://localhost:3000**
 ./scripts/sync-site.sh my-client --force
 ```
 
-**Stop for the day:**
+**Stop a specific site:**
 ```bash
-ddev stop
+./scripts/stop-site.sh my-client
+```
+
+**Stop all running sites:**
+```bash
+ddev stop --all
 ```
 
 ---
@@ -313,7 +324,8 @@ Syncing the site pulls the theme via `git pull`, not rsync — local branches ar
   scripts/
     setup-site.sh            ← init DDEV + download WP core (run once per site)
     sync-site.sh             ← rsync wp-content from remote server
-    swap-site.sh             ← stop/start DDEV, import DB on first activation
+    swap-site.sh             ← start a site, import DB on first activation
+    stop-site.sh             ← stop a running site
     reimport-db.sh           ← force DB reimport + search-replace
   ui/
     server.js                ← Node UI server (runs on WSL host)

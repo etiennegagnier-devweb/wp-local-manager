@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # swap-site.sh
 # Usage: ./swap-site.sh <site-slug>
-# Stops the current active DDEV site and starts the requested one.
+# Starts the requested site. Does NOT stop other running sites.
 
 set -euo pipefail
 
@@ -42,7 +42,7 @@ if [[ ! -d "$SITE_DIR/.ddev" ]]; then
   exit 1
 fi
 
-echo "🔀  Swapping to: $SITE_SLUG"
+echo "🚀  Starting: $SITE_SLUG"
 echo "    PHP: $PHP_VERSION | WP: $WP_VERSION"
 
 # -------------------------------------------------------
@@ -56,21 +56,8 @@ if [[ -n "$CURRENT_PHP" && "$CURRENT_PHP" != "$PHP_VERSION" ]]; then
 fi
 
 # -------------------------------------------------------
-# Stop current active site
+# Start site
 # -------------------------------------------------------
-CURRENT_ACTIVE="${ACTIVE_SITE:-}"
-if [[ -n "$CURRENT_ACTIVE" && "$CURRENT_ACTIVE" != "$SITE_SLUG" ]]; then
-  CURRENT_DIR="$SITES_PATH/$CURRENT_ACTIVE"
-  if [[ -d "$CURRENT_DIR/.ddev" ]]; then
-    echo "    ⏹️  Stopping: $CURRENT_ACTIVE"
-    (cd "$CURRENT_DIR" && ddev stop) || true
-  fi
-fi
-
-# -------------------------------------------------------
-# Start new site
-# -------------------------------------------------------
-echo "    🚀 Starting DDEV for $SITE_SLUG..."
 (cd "$SITE_DIR" && ddev start -y)
 
 # -------------------------------------------------------
@@ -101,16 +88,27 @@ elif [[ -f "$DB_FILE" && -n "$DB_IMPORTED" ]]; then
 fi
 
 # -------------------------------------------------------
-# Update ACTIVE_SITE in .env
+# Update ACTIVE_SITES in .env (comma-separated list)
 # -------------------------------------------------------
-if grep -q "^ACTIVE_SITE=" "$ROOT_DIR/.env"; then
-  TMP=$(mktemp)
-  sed "s|^ACTIVE_SITE=.*|ACTIVE_SITE=$SITE_SLUG|" "$ROOT_DIR/.env" > "$TMP" \
-    && cat "$TMP" > "$ROOT_DIR/.env" && rm "$TMP"
+CURRENT_ACTIVE_SITES="${ACTIVE_SITES:-}"
+# Add slug to list if not already present
+if echo "$CURRENT_ACTIVE_SITES" | grep -qw "$SITE_SLUG"; then
+  : # already in list
 else
-  echo "ACTIVE_SITE=$SITE_SLUG" >> "$ROOT_DIR/.env"
+  if [[ -z "$CURRENT_ACTIVE_SITES" ]]; then
+    NEW_ACTIVE_SITES="$SITE_SLUG"
+  else
+    NEW_ACTIVE_SITES="$CURRENT_ACTIVE_SITES,$SITE_SLUG"
+  fi
+  if grep -q "^ACTIVE_SITES=" "$ROOT_DIR/.env"; then
+    TMP=$(mktemp)
+    sed "s|^ACTIVE_SITES=.*|ACTIVE_SITES=$NEW_ACTIVE_SITES|" "$ROOT_DIR/.env" > "$TMP" \
+      && cat "$TMP" > "$ROOT_DIR/.env" && rm "$TMP"
+  else
+    echo "ACTIVE_SITES=$NEW_ACTIVE_SITES" >> "$ROOT_DIR/.env"
+  fi
 fi
 
 echo ""
-echo "✅  Active site: $SITE_SLUG"
+echo "✅  Started: $SITE_SLUG"
 echo "    🌐 https://$SITE_SLUG.ddev.site"

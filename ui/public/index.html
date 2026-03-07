@@ -110,6 +110,7 @@
     .btn.danger { background: var(--red); }
     .btn.success { background: var(--green); color: #0f1117; }
     .btn.warning { background: var(--yellow); color: #0f1117; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
 
     .site-list { overflow-y: auto; flex: 1; }
 
@@ -182,7 +183,9 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 16px;
+      margin-bottom: 16px;
     }
+    .card:last-child { margin-bottom: 0; }
 
     .card-label {
       font-size: 11px;
@@ -192,10 +195,17 @@
       margin-bottom: 12px;
     }
 
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
     .field { margin-bottom: 12px; }
     .field:last-child { margin-bottom: 0; }
     .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-    .field input, .field select {
+    .field input, .field select, .field textarea {
       width: 100%;
       background: var(--bg);
       border: 1px solid var(--border);
@@ -204,8 +214,10 @@
       padding: 7px 10px;
       font-size: 13px;
       outline: none;
+      font-family: inherit;
     }
-    .field input:focus, .field select:focus { border-color: var(--accent); }
+    .field textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
 
     .toggle-row {
       display: flex;
@@ -251,7 +263,17 @@
       gap: 12px;
     }
 
-    .sync-info { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    /* ── Disk usage ── */
+    .disk-bar-wrap {
+      background: var(--surface2);
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .disk-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width .4s; }
+    .disk-breakdown { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+    .disk-total { font-size: 22px; font-weight: 600; color: var(--text); }
 
     /* ── Log panel ── */
     .log-panel {
@@ -295,6 +317,28 @@
     }
     #log-output .log-error { color: var(--red); }
     #log-output .log-success { color: var(--green); }
+
+    /* ── Confirm modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      width: 360px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+    .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+    .modal-body { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
   </style>
 </head>
 <body>
@@ -303,11 +347,11 @@
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
   <h1>WP Local Manager</h1>
   <div id="status-bar">
-    <span>Active:</span>
-    <span class="badge active" id="active-badge">none</span>
-    <span class="badge" id="php-badge">PHP —</span>
-    <span class="badge" id="wp-badge">WP —</span>
-    <a id="open-local" href="#" target="_blank" class="btn ghost" style="padding:4px 10px;font-size:12px;">Open ↗</a>
+    <span>Running:</span>
+    <div id="active-sites-bar" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+      <span class="badge">none</span>
+    </div>
+    <div id="ram-warning" style="display:none;background:var(--yellow);color:#0f1117;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:500;">⚠ 3+ sites running</div>
   </div>
 </header>
 
@@ -343,10 +387,42 @@
   </div>
 </div>
 
+<!-- Confirm modal -->
+<div id="confirm-modal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-title" id="confirm-title"></div>
+    <div class="modal-body" id="confirm-body"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn danger" id="confirm-ok-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let sites = [];
 let selectedSlug = null;
 let ws;
+
+// ── Confirm modal ──────────────────────────────────────
+function showConfirm(title, body, okLabel, onConfirm) {
+  document.getElementById("confirm-title").textContent = title;
+  document.getElementById("confirm-body").textContent = body;
+  document.getElementById("confirm-ok-btn").textContent = okLabel;
+  document.getElementById("confirm-ok-btn").onclick = () => {
+    closeConfirm();
+    onConfirm();
+  };
+  document.getElementById("confirm-modal").style.display = "flex";
+}
+
+function closeConfirm() {
+  document.getElementById("confirm-modal").style.display = "none";
+}
+
+document.getElementById("confirm-modal").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("confirm-modal")) closeConfirm();
+});
 
 // ── WebSocket ──────────────────────────────────────────
 function connectWs() {
@@ -373,8 +449,6 @@ function connectWs() {
 
 // ── Log ────────────────────────────────────────────────
 function parseRsyncProgress(text) {
-  // rsync --info=progress2 format:
-  // "    102,400,000 100%   45.23MB/s    0:00:02 (xfr#123, to-chk=456/789)"
   const m = text.match(/([\d,]+)\s+[\d]+%\s+([\d.]+\s*\S+\/s).*xfr#(\d+)/);
   if (m) {
     const bytes = parseInt(m[1].replace(/,/g, ''));
@@ -393,17 +467,13 @@ function parseRsyncProgress(text) {
 function appendLog(text) {
   const el = document.getElementById("log-output");
 
-  // Try to parse as rsync progress line
   const stats = parseRsyncProgress(text);
   if (stats) {
-    const el = document.getElementById("transfer-stats");
-    el.style.display = "inline";
-    el.textContent = stats;
+    document.getElementById("transfer-stats").style.display = "inline";
+    document.getElementById("transfer-stats").textContent = stats;
     return;
   }
 
-  // Skip raw rsync progress lines that don't match our parser
-  // (partial lines, intermediate updates without xfr#)
   if (text.match(/^\s+[\d,]+\s+\d+%\s+/)) return;
 
   const line = document.createElement("div");
@@ -441,17 +511,18 @@ async function api(method, path, body) {
 
 async function loadStatus() {
   const s = await api("GET", "/status");
-  document.getElementById("active-badge").textContent = s.active_site || "none";
-  document.getElementById("php-badge").textContent = `PHP ${s.php_version || "—"}`;
-  document.getElementById("wp-badge").textContent = `WP ${s.wp_version || "—"}`;
-  const openBtn = document.getElementById("open-local");
-  if (s.local_url) {
-    openBtn.href = s.local_url;
-    openBtn.style.opacity = "1";
+  const active = s.active_sites || [];
+  const bar = document.getElementById("active-sites-bar");
+
+  if (active.length === 0) {
+    bar.innerHTML = `<span class="badge">none</span>`;
   } else {
-    openBtn.href = "#";
-    openBtn.style.opacity = "0.4";
+    bar.innerHTML = active.map(slug =>
+      `<a href="https://${slug}.ddev.site" target="_blank" class="badge active" style="cursor:pointer;text-decoration:none;">${slug} ↗</a>`
+    ).join("");
   }
+
+  document.getElementById("ram-warning").style.display = active.length >= 3 ? "block" : "none";
 }
 
 async function loadSites() {
@@ -475,7 +546,7 @@ function renderSiteList() {
       <div class="site-name">${s.label || s.slug}</div>
       <div class="site-domain">${s.domain || ""}</div>
       <div class="badges">
-        ${s.isActive    ? '<span class="tag green">active</span>' : ""}
+        ${s.isActive    ? '<span class="tag green">running</span>' : ""}
         ${s.isDdevSetup ? '<span class="tag blue">ddev</span>' : '<span class="tag red">no ddev</span>'}
         ${s.isSynced    ? '<span class="tag blue">synced</span>' : ""}
         ${s.hasDb       ? '<span class="tag green">db</span>' : ""}
@@ -498,6 +569,9 @@ function renderDetail(slug) {
 
   const localUrl = `https://${s.slug}.ddev.site`;
 
+  // Async data loaded after render
+  setTimeout(() => loadDisk(slug), 50);
+
   document.getElementById("site-detail").innerHTML = `
     <div class="detail-header">
       <div>
@@ -509,9 +583,10 @@ function renderDetail(slug) {
         ${!s.isDdevSetup
           ? `<button class="btn warning" onclick="setupSite('${slug}')">⚙ Setup DDEV</button>`
           : s.isActive
-            ? `<button class="btn success">✓ Active</button>`
-            : `<button class="btn" onclick="swapSite('${slug}')">Activate →</button>`
+            ? `<button class="btn danger" onclick="stopSite('${slug}')">⏹ Stop</button>`
+            : `<button class="btn" onclick="swapSite('${slug}')">▶ Start</button>`
         }
+        ${s.isDdevSetup && s.isActive ? `<button class="btn ghost" onclick="autoLogin('${slug}')">⚡ Admin</button>` : ""}
       </div>
     </div>
 
@@ -525,57 +600,82 @@ function renderDetail(slug) {
         <div style="display:flex;gap:8px;">
           <button class="btn ghost" onclick="syncSite('${slug}', false)">↻ Files</button>
           <button class="btn ghost" onclick="syncSite('${slug}', true)">↻ Files + DB</button>
-          ${s.hasDb && s.isDdevSetup ? `<button class="btn ghost" onclick="reimportDb('${slug}')">↺ Reimport DB</button>` : ""}
+          ${s.hasDb && s.isDdevSetup ? `<button class="btn ghost" onclick="confirmReimport('${slug}')">↺ Reimport DB</button>` : ""}
         </div>
       </div>
     </div>
 
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-label">Versions</div>
-        <div class="field">
-          <label>PHP Version</label>
-          <select onchange="updateSite('${slug}', 'php_version', this.value)">
-            ${["7.4","8.0","8.1","8.2","8.3"].map(v =>
-              `<option ${s.php_version === v ? "selected" : ""}>${v}</option>`
-            ).join("")}
-          </select>
+    <div class="grid-2" style="margin-bottom:0;">
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-label">Notes</div>
+          <div class="field" style="margin-bottom:0;">
+            <textarea
+              id="notes-field"
+              placeholder="Client contacts, special config, gotchas…"
+              onblur="updateSite('${slug}', 'notes', this.value)"
+            >${s.notes || ""}</textarea>
+          </div>
         </div>
-        <div class="field">
-          <label>WP Version</label>
-          <input type="text" value="${s.wp_version || ""}"
-            onblur="updateSite('${slug}', 'wp_version', this.value)" />
+
+        <div class="card" style="margin-bottom:0;" id="disk-card-${slug}">
+          <div class="card-label">Disk Usage</div>
+          <div id="disk-content-${slug}" style="color:var(--muted);font-size:12px;">Loading…</div>
         </div>
-        <div class="field">
-          <label>Table Prefix</label>
-          <input type="text" value="${s.table_prefix || "wp_"}"
-            onblur="updateSite('${slug}', 'table_prefix', this.value)" />
-        </div>
+
       </div>
 
-      <div class="card">
-        <div class="card-label">Git Theme</div>
-        <div class="field">
-          <label>Remote URL</label>
-          <input type="text" value="${s.git_remote || ""}"
-            placeholder="git@github.com:agency/theme.git"
-            onblur="updateSite('${slug}', 'git_remote', this.value)" />
+      <div style="display:flex;flex-direction:column;gap:14px;">
+
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-label">Versions</div>
+          <div class="field">
+            <label>PHP Version</label>
+            <select onchange="updateSite('${slug}', 'php_version', this.value)">
+              ${["7.4","8.0","8.1","8.2","8.3"].map(v =>
+                `<option ${s.php_version === v ? "selected" : ""}>${v}</option>`
+              ).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label>WP Version</label>
+            <input type="text" value="${s.wp_version || ""}"
+              onblur="updateSite('${slug}', 'wp_version', this.value)" />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Table Prefix</label>
+            <input type="text" value="${s.table_prefix || "wp_"}"
+              onblur="updateSite('${slug}', 'table_prefix', this.value)" />
+          </div>
         </div>
-        <div class="field">
-          <label>Theme Folder</label>
-          <input type="text" value="${s.theme_folder || ""}"
-            placeholder="client-theme"
-            onblur="updateSite('${slug}', 'theme_folder', this.value)" />
+
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-label">Git Theme</div>
+          <div class="field">
+            <label>Remote URL</label>
+            <input type="text" value="${s.git_remote || ""}"
+              placeholder="git@github.com:agency/theme.git"
+              onblur="updateSite('${slug}', 'git_remote', this.value)" />
+          </div>
+          <div class="field">
+            <label>Theme Folder</label>
+            <input type="text" value="${s.theme_folder || ""}"
+              placeholder="client-theme"
+              onblur="updateSite('${slug}', 'theme_folder', this.value)" />
+          </div>
+          <div class="toggle-row" style="margin-bottom:0;">
+            <span>R2 Uploads Offload</span>
+            <div class="toggle ${s.r2_offload ? "on" : ""}"
+              onclick="updateSite('${slug}', 'r2_offload', ${!s.r2_offload})"></div>
+          </div>
         </div>
-        <div class="toggle-row">
-          <span>R2 Uploads Offload</span>
-          <div class="toggle ${s.r2_offload ? "on" : ""}"
-            onclick="updateSite('${slug}', 'r2_offload', ${!s.r2_offload})"></div>
-        </div>
+
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" style="margin-top:14px;">
       <div class="card-label">Host / SSH</div>
       <div class="grid-2" style="margin:0;gap:12px;">
         <div class="field">
@@ -612,6 +712,25 @@ function renderDetail(slug) {
   `;
 }
 
+// ── Disk usage ─────────────────────────────────────────
+async function loadDisk(slug) {
+  const el = document.getElementById(`disk-content-${slug}`);
+  if (!el) return;
+  el.innerHTML = '<span style="color:var(--muted);font-size:12px;">Calculating…</span>';
+  const data = await api("GET", `/sites/${slug}/disk`);
+  if (!data.total) {
+    el.innerHTML = '<span style="color:var(--muted);font-size:12px;">Not synced yet</span>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="disk-total">${data.total}</div>
+    <div class="disk-breakdown">
+      ${data.breakdown.map(b => `<span>${b.label}: <strong style="color:var(--text)">${b.size}</strong></span>`).join(" · ")}
+    </div>
+  `;
+}
+
+
 // ── Actions ────────────────────────────────────────────
 async function setupSite(slug) {
   appendLog(`\n▶ Setting up DDEV for: ${slug}\n`);
@@ -624,13 +743,37 @@ async function syncSite(slug, withDb) {
 }
 
 async function swapSite(slug) {
-  appendLog(`\n▶ Activating: ${slug}\n`);
+  appendLog(`\n▶ Starting: ${slug}\n`);
   await api("POST", `/sites/${slug}/swap`);
+}
+
+async function stopSite(slug) {
+  appendLog(`\n▶ Stopping: ${slug}\n`);
+  await api("POST", `/sites/${slug}/stop`);
+}
+
+function confirmReimport(slug) {
+  showConfirm(
+    "Reimport Database?",
+    `This will wipe the local database for "${slug}" and reimport from db.sql. Any local DB changes will be lost.`,
+    "Reimport",
+    () => reimportDb(slug)
+  );
 }
 
 async function reimportDb(slug) {
   appendLog(`\n▶ Reimporting DB: ${slug}\n`);
   await api("POST", `/sites/${slug}/reimport-db`);
+}
+
+
+async function autoLogin(slug) {
+  const data = await api("POST", `/sites/${slug}/autologin`);
+  if (data.url) {
+    window.open(data.url, "_blank");
+  } else {
+    appendLog(`\n❌ Auto-login failed: ${data.error}\n`);
+  }
 }
 
 async function updateSite(slug, key, value) {
@@ -657,6 +800,7 @@ function openAddModal() {
     git_remote: "",
     theme_folder: "",
     r2_offload: false,
+    notes: "",
     host: {
       provider: "generic",
       ssh_user: "",
