@@ -1,14 +1,14 @@
-# Client site files — never commit
-sites/
+# ── Site configs (contain client info — never commit) ──
 sites.json
+sites.*.json
 
-# Env
+# ── Environment ────────────────────────────────────────
 .env
 *.env.local
 
-# Node
+# ── Node ───────────────────────────────────────────────
 ui/node_modules/
 
-# OS
+# ── OS ─────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

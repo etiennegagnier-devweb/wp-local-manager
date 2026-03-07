@@ -17,7 +17,6 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const SITES_PATH = process.env.SITES_PATH;
 const SCRIPTS_PATH = path.join(__dirname, "../scripts");
-const SITES_FILE = process.env.SITES_FILE || path.join(__dirname, "../sites.json");
 const ENV_FILE = path.join(__dirname, "../.env");
 
 if (!SITES_PATH) {
@@ -26,19 +25,66 @@ if (!SITES_PATH) {
 }
 
 // -------------------------------------------------------
-// Helpers
+// Multi-workspace helpers
 // -------------------------------------------------------
 
-function readSites() {
-  return JSON.parse(fs.readFileSync(SITES_FILE, "utf8"));
+function getSitesFiles() {
+  if (process.env.SITES_FILES) {
+    return process.env.SITES_FILES.split(",").map(s => s.trim()).filter(Boolean);
+  }
+  return [process.env.SITES_FILE || path.join(__dirname, "../sites.json")];
 }
 
-function writeSites(sites) {
-  fs.writeFileSync(SITES_FILE, JSON.stringify(sites, null, 2));
+function workspaceFromFile(filePath) {
+  const base = path.basename(filePath, ".json"); // e.g. "sites.freelance" or "sites"
+  const match = base.match(/^sites\.(.+)$/);
+  return match ? match[1] : base;
+}
+
+// Returns all sites across all files, each tagged with _workspace and _file
+function readAllSites() {
+  const all = [];
+  for (const file of getSitesFiles()) {
+    if (!fs.existsSync(file)) continue;
+    try {
+      const sites = JSON.parse(fs.readFileSync(file, "utf8"));
+      const workspace = workspaceFromFile(file);
+      for (const site of sites) {
+        all.push({ ...site, _workspace: workspace, _file: file });
+      }
+    } catch (e) {
+      console.error(`Failed to read ${file}:`, e.message);
+    }
+  }
+  return all;
+}
+
+// Find which file a slug lives in; returns null if not found
+function findSiteFile(slug) {
+  for (const file of getSitesFiles()) {
+    if (!fs.existsSync(file)) continue;
+    try {
+      const sites = JSON.parse(fs.readFileSync(file, "utf8"));
+      if (sites.find(s => s.slug === slug)) return file;
+    } catch (e) {}
+  }
+  return null;
+}
+
+// Read/write a single file safely
+function readFile(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function writeFile(filePath, sites) {
+  // Strip internal metadata before writing
+  const clean = sites.map(({ _workspace, _file, ...rest }) => rest);
+  fs.writeFileSync(filePath, JSON.stringify(clean, null, 2));
 }
 
 function getSite(slug) {
-  return readSites().find((s) => s.slug === slug) || null;
+  return readAllSites().find(s => s.slug === slug) || null;
 }
 
 function readEnv() {
@@ -128,7 +174,12 @@ function runScript(args, label) {
 // -------------------------------------------------------
 
 app.get("/api/sites", (req, res) => {
-  res.json(readSites().map(withStatus));
+  res.json(readAllSites().map(withStatus));
+});
+
+app.get("/api/workspaces", (req, res) => {
+  const files = getSitesFiles();
+  res.json(files.map(f => ({ name: workspaceFromFile(f), file: f, exists: fs.existsSync(f) })));
 });
 
 app.get("/api/sites/:slug", (req, res) => {
@@ -138,25 +189,34 @@ app.get("/api/sites/:slug", (req, res) => {
 });
 
 app.post("/api/sites", (req, res) => {
-  const sites = readSites();
   const newSite = req.body;
   if (!newSite.slug) return res.status(400).json({ error: "slug required" });
-  if (sites.find((s) => s.slug === newSite.slug))
+
+  const allSites = readAllSites();
+  if (allSites.find(s => s.slug === newSite.slug))
     return res.status(400).json({ error: "Site already exists" });
-  sites.push(newSite);
-  writeSites(sites);
+
+  // Determine which file to write to
+  const { _file: targetFile, ...siteData } = newSite;
+  const file = targetFile || getSitesFiles()[0];
+  const sites = readFile(file);
+  sites.push(siteData);
+  writeFile(file, sites);
   fs.mkdirSync(path.join(SITES_PATH, newSite.slug), { recursive: true });
-  res.json({ ok: true, site: withStatus(newSite) });
+  res.json({ ok: true, site: withStatus({ ...siteData, _workspace: workspaceFromFile(file), _file: file }) });
 });
 
 app.put("/api/sites/:slug", (req, res) => {
   const { slug } = req.params;
-  const sites = readSites();
-  const idx = sites.findIndex((s) => s.slug === slug);
-  if (idx === -1) return res.status(404).json({ error: "Site not found" });
-  sites[idx] = { ...sites[idx], ...req.body };
-  writeSites(sites);
-  res.json({ ok: true, site: withStatus(sites[idx]) });
+  const file = findSiteFile(slug);
+  if (!file) return res.status(404).json({ error: "Site not found" });
+
+  const sites = readFile(file);
+  const idx = sites.findIndex(s => s.slug === slug);
+  const { _workspace, _file, ...updates } = req.body;
+  sites[idx] = { ...sites[idx], ...updates };
+  writeFile(file, sites);
+  res.json({ ok: true, site: withStatus({ ...sites[idx], _workspace: workspaceFromFile(file), _file: file }) });
 });
 
 // -------------------------------------------------------
@@ -345,7 +405,7 @@ app.get("/api/status", (req, res) => {
     let ddevRunning = null;
     try {
       const parsed = JSON.parse(stdout);
-      const ourSlugs = new Set(readSites().map(s => s.slug));
+      const ourSlugs = new Set(readAllSites().map(s => s.slug));
       ddevRunning = (parsed.raw || [])
         .filter(s => s.status === "running" && ourSlugs.has(s.name))
         .map(s => s.name);
@@ -391,5 +451,5 @@ const PORT = process.env.UI_PORT || 3000;
 server.listen(PORT, () => {
   console.log(`WP Local Manager UI running at http://localhost:${PORT}`);
   console.log(`SITES_PATH: ${SITES_PATH}`);
-  console.log(`SITES_FILE: ${SITES_FILE}`);
+  console.log(`SITES_FILES: ${getSitesFiles().join(", ")}`);
 });

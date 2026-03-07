@@ -651,6 +651,48 @@
     /* ── Divider ────────────────────────────────────── */
     .divider { height: 1px; background: var(--border); margin: 20px 0; }
 
+    /* ── Workspace tabs ─────────────────────────────── */
+    .ws-tabs {
+      display: flex;
+      gap: 2px;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    .ws-tabs::-webkit-scrollbar { display: none; }
+    .ws-tab {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--text3);
+      white-space: nowrap;
+      transition: background .1s, color .1s;
+      border: none;
+      background: none;
+      font-family: var(--font);
+    }
+    .ws-tab:hover { background: var(--surface2); color: var(--text2); }
+    .ws-tab.active { background: var(--surface2); color: var(--text); }
+
+    /* workspace color dots */
+    .ws-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
+      margin-top: -1px;
+    }
+    .ws-chip {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
     /* ── Add site modal ─────────────────────────────── */
     .modal-wide { width: 480px; }
     .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
@@ -703,6 +745,7 @@
       <input type="text" id="search" class="search-input" placeholder="Search…" />
       <button class="btn btn-ghost btn-sm" onclick="openAddModal()">+ Add</button>
     </div>
+    <div id="ws-tabs" class="ws-tabs" style="display:none"></div>
     <div class="site-list" id="site-list"></div>
   </div>
 
@@ -738,6 +781,12 @@
 <div id="add-site-overlay" class="overlay" style="display:none">
   <div class="modal modal-wide">
     <div class="modal-title">Add site</div>
+    <div id="add-workspace-row" style="display:none;margin-bottom:14px;">
+      <div class="field" style="margin-bottom:0">
+        <label>Workspace</label>
+        <select id="add-workspace"></select>
+      </div>
+    </div>
     <div class="modal-section-title">Identity</div>
     <div class="modal-grid">
       <div class="field span-2">
@@ -817,7 +866,14 @@
 
 <script>
 let sites = [];
+let workspaces = [];
 let selectedSlug = null;
+let selectedWorkspace = "all";
+const WS_COLORS = ["#7c6af7","#34c97e","#f59e0b","#f06060","#38bdf8","#a78bfa","#fb923c"];
+function wsColor(name) {
+  const idx = workspaces.findIndex(w => w.name === name);
+  return WS_COLORS[idx % WS_COLORS.length] || WS_COLORS[0];
+}
 let ws;
 let logCollapsed = false;
 let theme = localStorage.getItem("wplm-theme") || "dark";
@@ -959,9 +1015,32 @@ async function loadStatus() {
 
 // ── Sites ──────────────────────────────────────────────
 async function loadSites() {
-  sites = await api("GET", "/sites");
+  [sites, workspaces] = await Promise.all([
+    api("GET", "/sites"),
+    api("GET", "/workspaces"),
+  ]);
+  renderWsTabs();
   renderSiteList();
   if (selectedSlug) renderDetail(selectedSlug);
+}
+
+function renderWsTabs() {
+  const container = document.getElementById("ws-tabs");
+  if (workspaces.length <= 1) { container.style.display = "none"; return; }
+  container.style.display = "flex";
+  const all = [{ name: "all" }, ...workspaces];
+  container.innerHTML = all.map(w => {
+    const dot = w.name !== "all" ? `<span class="ws-dot" style="background:${wsColor(w.name)}"></span>` : "";
+    const label = w.name === "all" ? "All" : w.name;
+    return `<button class="ws-tab${selectedWorkspace === w.name ? " active" : ""}"
+      onclick="setWorkspace('${w.name}')">${dot}${label}</button>`;
+  }).join("");
+}
+
+function setWorkspace(name) {
+  selectedWorkspace = name;
+  renderWsTabs();
+  renderSiteList();
 }
 
 function sortSites(list) {
@@ -989,11 +1068,12 @@ function letterIcon(label, sizePx) {
 // ── Render site list ───────────────────────────────────
 function renderSiteList() {
   const q = document.getElementById("search").value.toLowerCase();
-  const filtered = sites.filter(s =>
-    s.slug.includes(q) ||
-    (s.label||"").toLowerCase().includes(q) ||
-    (s.domain||"").includes(q)
-  );
+  const filtered = sites.filter(s => {
+    if (selectedWorkspace !== "all" && s._workspace !== selectedWorkspace) return false;
+    return s.slug.includes(q) ||
+      (s.label||"").toLowerCase().includes(q) ||
+      (s.domain||"").includes(q);
+  });
   const sorted = sortSites(filtered);
   const list = document.getElementById("site-list");
   list.innerHTML = "";
@@ -1041,6 +1121,15 @@ function renderSiteList() {
     chip.textContent = `php ${s.php_version || "?"}`;
     status.appendChild(chip);
 
+    if (workspaces.length > 1 && s._workspace) {
+      const wc = document.createElement("div");
+      wc.className = "ws-chip";
+      wc.textContent = s._workspace;
+      wc.style.background = wsColor(s._workspace) + "22";
+      wc.style.color = wsColor(s._workspace);
+      status.appendChild(wc);
+    }
+
     div.appendChild(fav);
     div.appendChild(info);
     div.appendChild(status);
@@ -1070,6 +1159,7 @@ function renderDetail(slug) {
         <div>
           <div class="detail-title">${s.label || s.slug}</div>
           <div class="detail-domain">${s.domain || ""}</div>
+          ${workspaces.length > 1 && s._workspace ? `<div style="margin-top:4px"><span class="ws-chip" style="background:${wsColor(s._workspace)}22;color:${wsColor(s._workspace)}">${s._workspace}</span></div>` : ""}
           ${s.isDdevSetup ? `<div class="detail-local"><a href="${localUrl}" target="_blank">${localUrl} ↗</a></div>` : ""}
         </div>
       </div>
@@ -1319,13 +1409,28 @@ async function updateHost(slug, key, value) {
 function openAddModal() {
   // Clear fields
   ["add-slug","add-label","add-domain","add-ssh-user","add-ssh-host","add-site-path"].forEach(id => {
-    document.getElementById(id).value = "";
+    const el = document.getElementById(id);
+    el.value = "";
+    delete el.dataset.touched;
   });
   document.getElementById("add-php").value = "8.2";
   document.getElementById("add-wp").value = "6.5";
   document.getElementById("add-prefix").value = "wp_";
   document.getElementById("add-ssh-port").value = "22";
   document.getElementById("add-provider").value = "generic";
+
+  // Workspace selector
+  const wsRow = document.getElementById("add-workspace-row");
+  const wsSel = document.getElementById("add-workspace");
+  if (workspaces.length > 1) {
+    wsSel.innerHTML = workspaces.map(w =>
+      `<option value="${w.file}"${selectedWorkspace === w.name ? " selected" : ""}>${w.name}</option>`
+    ).join("");
+    wsRow.style.display = "block";
+  } else {
+    wsRow.style.display = "none";
+  }
+
   document.getElementById("add-site-overlay").style.display = "flex";
   setTimeout(() => document.getElementById("add-slug").focus(), 50);
 }
@@ -1368,11 +1473,15 @@ async function submitAddSite() {
   const sshPort = parseInt(document.getElementById("add-ssh-port").value) || 22;
   const sitePath = document.getElementById("add-site-path").value.trim();
 
+  const wsSel = document.getElementById("add-workspace");
+  const targetFile = workspaces.length > 1 && wsSel ? wsSel.value : undefined;
+
   const result = await api("POST", "/sites", {
     slug, label, domain,
     php_version: php, wp_version: wp, table_prefix: prefix,
     git_remote: "", theme_folder: "", r2_offload: false, notes: "",
-    host: { provider, ssh_user: sshUser, ssh_host: sshHost, ssh_port: sshPort, site_path: sitePath }
+    host: { provider, ssh_user: sshUser, ssh_host: sshHost, ssh_port: sshPort, site_path: sitePath },
+    ...(targetFile ? { _file: targetFile } : {})
   });
 
   if (result.error) {

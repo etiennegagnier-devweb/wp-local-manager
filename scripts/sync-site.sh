@@ -25,7 +25,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 source "$ROOT_DIR/.env"
 
-SITES_FILE="$ROOT_DIR/sites.json"
+# -------------------------------------------------------
+# Resolve which sites file contains this slug
+# Supports SITES_FILES (multi-workspace) and SITES_FILE (single)
+# -------------------------------------------------------
+resolve_sites_file() {
+  local slug="$1"
+  # Multi-workspace: SITES_FILES is comma-separated list
+  if [[ -n "${SITES_FILES:-}" ]]; then
+    IFS=',' read -ra FILES <<< "$SITES_FILES"
+    for f in "${FILES[@]}"; do
+      f="${f// /}"  # trim spaces
+      if [[ -f "$f" ]] && jq -e ".[] | select(.slug == \"$slug\")" "$f" > /dev/null 2>&1; then
+        echo "$f"
+        return 0
+      fi
+    done
+  fi
+  # Single workspace: SITES_FILE or default
+  local default="${SITES_FILE:-$ROOT_DIR/sites.json}"
+  echo "$default"
+}
+
+SITES_FILE="$(resolve_sites_file "$SITE_SLUG")"
 SITE_DIR="$SITES_PATH/$SITE_SLUG"
 SSH_KEY="${SSH_KEY_PATH:-$HOME/.ssh/wp_local_manager}"
 
