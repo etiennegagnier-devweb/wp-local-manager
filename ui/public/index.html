@@ -650,6 +650,20 @@
 
     /* ── Divider ────────────────────────────────────── */
     .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+    /* ── Add site modal ─────────────────────────────── */
+    .modal-wide { width: 480px; }
+    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+    .modal-grid .span-2 { grid-column: 1 / -1; }
+    .modal-section-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text3);
+      margin: 14px 0 10px;
+    }
+    .modal-section-title:first-child { margin-top: 0; }
   </style>
 </head>
 <body>
@@ -674,6 +688,7 @@
   </div>
 
   <div class="header-right">
+    <button id="stop-all-btn" class="btn btn-ghost btn-sm" style="display:none;color:var(--red);border-color:var(--red-t);" onclick="confirmStopAll()">Stop all</button>
     <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
       <svg id="theme-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
@@ -716,6 +731,75 @@
         </div>
       </div>
       <div id="log-output"></div>
+    </div>
+  </div>
+</div>
+
+<div id="add-site-overlay" class="overlay" style="display:none">
+  <div class="modal modal-wide">
+    <div class="modal-title">Add site</div>
+    <div class="modal-section-title">Identity</div>
+    <div class="modal-grid">
+      <div class="field span-2">
+        <label>Slug <span style="color:var(--text3);font-weight:400">(used as folder name and local URL)</span></label>
+        <input type="text" id="add-slug" placeholder="client-name" />
+      </div>
+      <div class="field">
+        <label>Label</label>
+        <input type="text" id="add-label" placeholder="Client Name" />
+      </div>
+      <div class="field">
+        <label>Domain</label>
+        <input type="text" id="add-domain" placeholder="clientname.com" />
+      </div>
+    </div>
+    <div class="modal-section-title">WordPress</div>
+    <div class="modal-grid">
+      <div class="field">
+        <label>PHP Version</label>
+        <select id="add-php">
+          <option>7.4</option><option>8.0</option><option>8.1</option>
+          <option selected>8.2</option><option>8.3</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>WP Version</label>
+        <input type="text" id="add-wp" value="6.5" />
+      </div>
+      <div class="field">
+        <label>Table Prefix</label>
+        <input type="text" id="add-prefix" value="wp_" />
+      </div>
+    </div>
+    <div class="modal-section-title">Host / SSH</div>
+    <div class="modal-grid">
+      <div class="field">
+        <label>Provider</label>
+        <select id="add-provider">
+          <option>whc</option><option selected>generic</option>
+          <option>runcloud</option><option>rocketnet</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>SSH User</label>
+        <input type="text" id="add-ssh-user" placeholder="root" />
+      </div>
+      <div class="field">
+        <label>SSH Host / IP</label>
+        <input type="text" id="add-ssh-host" placeholder="whc-prod" />
+      </div>
+      <div class="field">
+        <label>SSH Port</label>
+        <input type="number" id="add-ssh-port" value="22" />
+      </div>
+      <div class="field span-2">
+        <label>Remote Path</label>
+        <input type="text" id="add-site-path" placeholder="/home/user/public_html" />
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeAddModal()">Cancel</button>
+      <button class="btn" onclick="submitAddSite()">Add site</button>
     </div>
   </div>
 </div>
@@ -773,6 +857,9 @@ function closeConfirm() {
 }
 document.getElementById("confirm-overlay").addEventListener("click", e => {
   if (e.target.id === "confirm-overlay") closeConfirm();
+});
+document.getElementById("add-site-overlay").addEventListener("click", e => {
+  if (e.target.id === "add-site-overlay") closeAddModal();
 });
 
 // ── WebSocket ──────────────────────────────────────────
@@ -867,6 +954,7 @@ async function loadStatus() {
 
   const warn = document.getElementById("ram-warning");
   warn.style.display = active.length >= 3 ? "inline-flex" : "none";
+  document.getElementById("stop-all-btn").style.display = active.length > 0 ? "inline-flex" : "none";
 }
 
 // ── Sites ──────────────────────────────────────────────
@@ -1229,16 +1317,87 @@ async function updateHost(slug, key, value) {
 }
 
 function openAddModal() {
-  const slug = prompt("Site slug (e.g. client-name):");
-  if (!slug) return;
-  const domain = prompt("Domain (e.g. clientname.com):");
-  api("POST", "/sites", {
-    slug, label: slug, domain: domain||"",
-    php_version: "8.2", wp_version: "6.5", table_prefix: "wp_",
+  // Clear fields
+  ["add-slug","add-label","add-domain","add-ssh-user","add-ssh-host","add-site-path"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+  document.getElementById("add-php").value = "8.2";
+  document.getElementById("add-wp").value = "6.5";
+  document.getElementById("add-prefix").value = "wp_";
+  document.getElementById("add-ssh-port").value = "22";
+  document.getElementById("add-provider").value = "generic";
+  document.getElementById("add-site-overlay").style.display = "flex";
+  setTimeout(() => document.getElementById("add-slug").focus(), 50);
+}
+
+function closeAddModal() {
+  document.getElementById("add-site-overlay").style.display = "none";
+}
+
+// Auto-fill label and site-path when slug is typed
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("add-slug").addEventListener("input", e => {
+    const slug = e.target.value.trim();
+    const label = document.getElementById("add-label");
+    if (!label.dataset.touched) {
+      label.value = slug.replace(/-/g, " ").replace(/\w/g, c => c.toUpperCase());
+    }
+    const sitePath = document.getElementById("add-site-path");
+    if (!sitePath.dataset.touched) {
+      sitePath.value = slug ? `/home/${slug}/public_html` : "";
+    }
+  });
+  ["add-label","add-site-path"].forEach(id => {
+    document.getElementById(id).addEventListener("input", e => {
+      e.target.dataset.touched = "1";
+    });
+  });
+});
+
+async function submitAddSite() {
+  const slug = document.getElementById("add-slug").value.trim();
+  if (!slug) { document.getElementById("add-slug").focus(); return; }
+  const label = document.getElementById("add-label").value.trim() || slug;
+  const domain = document.getElementById("add-domain").value.trim();
+  const php = document.getElementById("add-php").value;
+  const wp = document.getElementById("add-wp").value.trim();
+  const prefix = document.getElementById("add-prefix").value.trim() || "wp_";
+  const provider = document.getElementById("add-provider").value;
+  const sshUser = document.getElementById("add-ssh-user").value.trim();
+  const sshHost = document.getElementById("add-ssh-host").value.trim();
+  const sshPort = parseInt(document.getElementById("add-ssh-port").value) || 22;
+  const sitePath = document.getElementById("add-site-path").value.trim();
+
+  const result = await api("POST", "/sites", {
+    slug, label, domain,
+    php_version: php, wp_version: wp, table_prefix: prefix,
     git_remote: "", theme_folder: "", r2_offload: false, notes: "",
-    host: { provider: "generic", ssh_user: "", ssh_host: "", ssh_port: 22,
-            site_path: `/home/${slug}/public_html` }
-  }).then(() => loadSites());
+    host: { provider, ssh_user: sshUser, ssh_host: sshHost, ssh_port: sshPort, site_path: sitePath }
+  });
+
+  if (result.error) {
+    appendLog(`\n❌ ${result.error}\n`);
+    return;
+  }
+
+  closeAddModal();
+  await loadSites();
+  selectSite(slug);
+}
+
+function confirmStopAll() {
+  const active = sites.filter(s => s.isActive).map(s => s.label || s.slug);
+  showConfirm(
+    "Stop all running sites?",
+    `This will stop ${active.length} site${active.length > 1 ? "s" : ""}: ${active.join(", ")}.`,
+    "Stop all",
+    stopAll
+  );
+}
+
+async function stopAll() {
+  appendLog("\n▶ Stopping all sites…\n");
+  await api("POST", "/stop-all");
 }
 
 document.getElementById("search").addEventListener("input", renderSiteList);

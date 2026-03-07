@@ -311,6 +311,21 @@ app.post("/api/sites/:slug/snapshot/restore", (req, res) => {
 });
 
 // -------------------------------------------------------
+// REST API — Stop all
+// -------------------------------------------------------
+
+app.post("/api/stop-all", (req, res) => {
+  runScript(["-c", "ddev stop --all"], "Stopping all sites");
+  // Clear ACTIVE_SITES in .env immediately
+  try {
+    let envContent = fs.readFileSync(ENV_FILE, "utf8");
+    envContent = envContent.replace(/^ACTIVE_SITES=.*/m, "ACTIVE_SITES=");
+    fs.writeFileSync(ENV_FILE, envContent);
+  } catch (e) {}
+  res.json({ ok: true });
+});
+
+// -------------------------------------------------------
 // REST API — Cancel / Status
 // -------------------------------------------------------
 
