@@ -1,0 +1,13 @@
+# Client site files — never commit
+sites/
+
+# Env
+.env
+*.env.local
+
+# Node
+ui/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

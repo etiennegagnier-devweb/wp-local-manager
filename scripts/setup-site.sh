@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# setup-site.sh
+# Usage: ./setup-site.sh <site-slug>
+# Run once per site. Creates DDEV config, downloads WP core.
+
+set -euo pipefail
+
+SITE_SLUG="${1:-}"
+
+if [[ -z "$SITE_SLUG" ]]; then
+  echo "Usage: $0 <site-slug>"
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+source "$ROOT_DIR/.env"
+
+SITES_FILE="$ROOT_DIR/sites.json"
+SITE_DIR="$SITES_PATH/$SITE_SLUG"
+
+# -------------------------------------------------------
+# Read config from sites.json
+# -------------------------------------------------------
+get_field() {
+  jq -r ".[] | select(.slug == \"$SITE_SLUG\") | $1" "$SITES_FILE"
+}
+
+PHP_VERSION=$(get_field '.php_version // "8.2"')
+WP_VERSION=$(get_field  '.wp_version  // "6.5"')
+DOMAIN=$(get_field '.domain')
+
+if [[ -z "$DOMAIN" ]]; then
+  echo "❌  Site '$SITE_SLUG' not found in sites.json"
+  exit 1
+fi
+
+echo "⚙️   Setting up: $SITE_SLUG"
+echo "    PHP: $PHP_VERSION | WP: $WP_VERSION"
+echo "    Local URL: https://$SITE_SLUG.ddev.site"
+
+# -------------------------------------------------------
+# Create site directory
+# -------------------------------------------------------
+mkdir -p "$SITE_DIR"
+
+# -------------------------------------------------------
+# Generate .ddev/config.yaml
+# -------------------------------------------------------
+mkdir -p "$SITE_DIR/.ddev"
+cat > "$SITE_DIR/.ddev/config.yaml" << DDEVEOF
+name: $SITE_SLUG
+type: wordpress
+docroot: .
+php_version: "$PHP_VERSION"
+webserver_type: nginx-fpm
+router_http_port: "80"
+router_https_port: "443"
+DDEVEOF
+
+echo "    ✅ DDEV config created"
+
+# -------------------------------------------------------
+# Start DDEV
+# -------------------------------------------------------
+echo "    🚀 Starting DDEV..."
+(cd "$SITE_DIR" && ddev start -y)
+
+# -------------------------------------------------------
+# Download WP core
+# -------------------------------------------------------
+echo "    📦 Downloading WordPress $WP_VERSION..."
+(cd "$SITE_DIR" && ddev exec wp core download --version="$WP_VERSION" --skip-content --allow-root)
+
+# -------------------------------------------------------
+# Create wp-config.php (DDEV internal DB credentials)
+# -------------------------------------------------------
+(cd "$SITE_DIR" && ddev exec wp config create \
+  --dbname=db \
+  --dbuser=db \
+  --dbpass=db \
+  --dbhost=db \
+  --allow-root \
+  --force)
+
+echo "    ✅ wp-config.php created"
+
+# -------------------------------------------------------
+# Mark as setup in sites.json
+# -------------------------------------------------------
+TMP=$(mktemp)
+jq --arg slug "$SITE_SLUG" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  'map(if .slug == $slug then .ddev_setup = $ts else . end)' \
+  "$SITES_FILE" > "$TMP" && cat "$TMP" > "$SITES_FILE" && rm "$TMP"
+
+echo ""
+echo "✅  Setup complete: $SITE_SLUG"
+echo "    Now run: ./scripts/sync-site.sh $SITE_SLUG --db"
+echo "    Then:    ./scripts/swap-site.sh $SITE_SLUG"

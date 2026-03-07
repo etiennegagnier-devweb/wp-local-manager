@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WP Local Manager</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --accent: #4f8ef7;
+      --green: #3ecf8e;
+      --yellow: #f6c344;
+      --red: #f56565;
+      --text: #e2e8f0;
+      --muted: #718096;
+      --font-mono: "JetBrains Mono", "Fira Mono", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    header h1 { font-size: 16px; font-weight: 600; letter-spacing: -.3px; }
+
+    #status-bar {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .badge.active { border-color: var(--green); color: var(--green); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      height: calc(100vh - 53px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+    }
+
+    .sidebar-header input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 7px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+    .sidebar-header input:focus { border-color: var(--accent); }
+
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity .15s;
+      white-space: nowrap;
+    }
+    .btn:hover { opacity: .85; }
+    .btn.ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn.danger { background: var(--red); }
+    .btn.success { background: var(--green); color: #0f1117; }
+    .btn.warning { background: var(--yellow); color: #0f1117; }
+
+    .site-list { overflow-y: auto; flex: 1; }
+
+    .site-item {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .site-item:hover { background: var(--surface2); }
+    .site-item.selected { background: var(--surface2); border-left: 2px solid var(--accent); }
+    .site-item.is-active { border-left: 2px solid var(--green); }
+
+    .site-name { font-weight: 500; font-size: 13px; }
+    .site-domain { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+
+    .tag {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .tag.green { border-color: var(--green); color: var(--green); }
+    .tag.yellow { border-color: var(--yellow); color: var(--yellow); }
+    .tag.blue { border-color: var(--accent); color: var(--accent); }
+    .tag.red { border-color: var(--red); color: var(--red); }
+
+    /* ── Main ── */
+    .main { display: flex; flex-direction: column; overflow: hidden; }
+
+    .site-detail { flex: 1; overflow-y: auto; padding: 24px; }
+
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--muted);
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .detail-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 16px;
+    }
+
+    .detail-title { font-size: 20px; font-weight: 600; }
+    .detail-domain { color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .detail-url { color: var(--accent); font-size: 12px; margin-top: 2px; font-family: var(--font-mono); }
+
+    .action-bar { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .card-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .field input, .field select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 7px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    .toggle {
+      width: 36px; height: 20px;
+      background: var(--border);
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: background .2s;
+      flex-shrink: 0;
+    }
+    .toggle.on { background: var(--green); }
+    .toggle::after {
+      content: "";
+      position: absolute;
+      width: 14px; height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      top: 3px; left: 3px;
+      transition: transform .2s;
+    }
+    .toggle.on::after { transform: translateX(16px); }
+
+    .sync-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .sync-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sync-info { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    /* ── Log panel ── */
+    .log-panel {
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 200px;
+    }
+
+    .log-header {
+      padding: 7px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    #log-status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    #log-status-dot.running { background: var(--yellow); animation: pulse 1s infinite; }
+    #log-status-dot.done { background: var(--green); }
+    #log-status-dot.error { background: var(--red); }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    #log-output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      color: #a0aec0;
+    }
+    #log-output .log-error { color: var(--red); }
+    #log-output .log-success { color: var(--green); }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
+  <h1>WP Local Manager</h1>
+  <div id="status-bar">
+    <span>Active:</span>
+    <span class="badge active" id="active-badge">none</span>
+    <span class="badge" id="php-badge">PHP —</span>
+    <span class="badge" id="wp-badge">WP —</span>
+    <a id="open-local" href="#" target="_blank" class="btn ghost" style="padding:4px 10px;font-size:12px;">Open ↗</a>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <input type="text" id="search" placeholder="Search sites…" />
+      <button class="btn ghost" onclick="openAddModal()">+ Add</button>
+    </div>
+    <div class="site-list" id="site-list"></div>
+  </div>
+
+  <div class="main">
+    <div class="site-detail" id="site-detail">
+      <div class="empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
+        <p>Select a site to get started</p>
+      </div>
+    </div>
+
+    <div class="log-panel">
+      <div class="log-header">
+        <div id="log-status-dot"></div>
+        <span id="log-label">Ready</span>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+          <span id="transfer-stats" style="display:none;font-size:11px;font-family:var(--font-mono);color:var(--accent);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;"></span>
+          <button id="cancel-btn" class="btn danger" style="display:none;padding:3px 8px;font-size:11px;" onclick="cancelProcess()">Cancel</button>
+          <button class="btn ghost" style="padding:3px 8px;font-size:11px;" onclick="clearLog()">Clear</button>
+        </div>
+      </div>
+      <div id="log-output"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let sites = [];
+let selectedSlug = null;
+let ws;
+
+// ── WebSocket ──────────────────────────────────────────
+function connectWs() {
+  ws = new WebSocket(`ws://${location.host}`);
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === "log") appendLog(msg.text);
+    if (msg.type === "start") {
+      setLogStatus("running", msg.label);
+      document.getElementById("cancel-btn").style.display = "inline-block";
+      document.getElementById("transfer-stats").style.display = "none";
+    }
+    if (msg.type === "done") {
+      setLogStatus(msg.code === 0 ? "done" : "error",
+        msg.label + (msg.code === 0 ? " — done" : " — failed"));
+      document.getElementById("cancel-btn").style.display = "none";
+      document.getElementById("transfer-stats").style.display = "none";
+      loadStatus();
+      loadSites();
+    }
+  };
+  ws.onclose = () => setTimeout(connectWs, 2000);
+}
+
+// ── Log ────────────────────────────────────────────────
+function parseRsyncProgress(text) {
+  // rsync --info=progress2 format:
+  // "    102,400,000 100%   45.23MB/s    0:00:02 (xfr#123, to-chk=456/789)"
+  const m = text.match(/([\d,]+)\s+[\d]+%\s+([\d.]+\s*\S+\/s).*xfr#(\d+)/);
+  if (m) {
+    const bytes = parseInt(m[1].replace(/,/g, ''));
+    const speed = m[2].trim();
+    const files = parseInt(m[3]);
+    const transferred = bytes >= 1073741824
+      ? (bytes / 1073741824).toFixed(1) + ' GB'
+      : bytes >= 1048576
+        ? (bytes / 1048576).toFixed(1) + ' MB'
+        : (bytes / 1024).toFixed(0) + ' KB';
+    return `↓ ${speed} · ${transferred} · ${files} files`;
+  }
+  return null;
+}
+
+function appendLog(text) {
+  const el = document.getElementById("log-output");
+
+  // Try to parse as rsync progress line
+  const stats = parseRsyncProgress(text);
+  if (stats) {
+    const el = document.getElementById("transfer-stats");
+    el.style.display = "inline";
+    el.textContent = stats;
+    return;
+  }
+
+  // Skip raw rsync progress lines that don't match our parser
+  // (partial lines, intermediate updates without xfr#)
+  if (text.match(/^\s+[\d,]+\s+\d+%\s+/)) return;
+
+  const line = document.createElement("div");
+  line.textContent = text.trimEnd();
+  if (text.includes("❌") || text.toLowerCase().includes("fatal") || text.startsWith("rsync: ") || text.startsWith("rsync error:")) line.className = "log-error";
+  if (text.includes("✅")) line.className = "log-success";
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById("log-output").innerHTML = "";
+  setLogStatus("", "Ready");
+}
+
+function setLogStatus(state, label) {
+  document.getElementById("log-status-dot").className = state;
+  document.getElementById("log-label").textContent = label;
+}
+
+async function cancelProcess() {
+  await api("POST", "/cancel");
+  document.getElementById("cancel-btn").style.display = "none";
+}
+
+// ── API ────────────────────────────────────────────────
+async function api(method, path, body) {
+  const r = await fetch(`/api${path}`, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return r.json();
+}
+
+async function loadStatus() {
+  const s = await api("GET", "/status");
+  document.getElementById("active-badge").textContent = s.active_site || "none";
+  document.getElementById("php-badge").textContent = `PHP ${s.php_version || "—"}`;
+  document.getElementById("wp-badge").textContent = `WP ${s.wp_version || "—"}`;
+  const openBtn = document.getElementById("open-local");
+  if (s.local_url) {
+    openBtn.href = s.local_url;
+    openBtn.style.opacity = "1";
+  } else {
+    openBtn.href = "#";
+    openBtn.style.opacity = "0.4";
+  }
+}
+
+async function loadSites() {
+  sites = await api("GET", "/sites");
+  renderSiteList();
+  if (selectedSlug) renderDetail(selectedSlug);
+}
+
+// ── Render ─────────────────────────────────────────────
+function renderSiteList() {
+  const q = document.getElementById("search").value.toLowerCase();
+  const filtered = sites.filter(s =>
+    s.slug.includes(q) ||
+    (s.label || "").toLowerCase().includes(q) ||
+    (s.domain || "").includes(q)
+  );
+
+  document.getElementById("site-list").innerHTML = filtered.map(s => `
+    <div class="site-item ${s.isActive ? "is-active" : ""} ${s.slug === selectedSlug ? "selected" : ""}"
+         onclick="selectSite('${s.slug}')">
+      <div class="site-name">${s.label || s.slug}</div>
+      <div class="site-domain">${s.domain || ""}</div>
+      <div class="badges">
+        ${s.isActive    ? '<span class="tag green">active</span>' : ""}
+        ${s.isDdevSetup ? '<span class="tag blue">ddev</span>' : '<span class="tag red">no ddev</span>'}
+        ${s.isSynced    ? '<span class="tag blue">synced</span>' : ""}
+        ${s.hasDb       ? '<span class="tag green">db</span>' : ""}
+        ${s.r2_offload  ? '<span class="tag yellow">r2</span>' : ""}
+        <span class="tag">php ${s.php_version || "?"}</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+function selectSite(slug) {
+  selectedSlug = slug;
+  renderSiteList();
+  renderDetail(slug);
+}
+
+function renderDetail(slug) {
+  const s = sites.find(x => x.slug === slug);
+  if (!s) return;
+
+  const localUrl = `https://${s.slug}.ddev.site`;
+
+  document.getElementById("site-detail").innerHTML = `
+    <div class="detail-header">
+      <div>
+        <div class="detail-title">${s.label || s.slug}</div>
+        <div class="detail-domain">${s.domain || ""}</div>
+        ${s.isDdevSetup ? `<div class="detail-url"><a href="${localUrl}" target="_blank" style="color:var(--accent)">${localUrl} ↗</a></div>` : ""}
+      </div>
+      <div class="action-bar">
+        ${!s.isDdevSetup
+          ? `<button class="btn warning" onclick="setupSite('${slug}')">⚙ Setup DDEV</button>`
+          : s.isActive
+            ? `<button class="btn success">✓ Active</button>`
+            : `<button class="btn" onclick="swapSite('${slug}')">Activate →</button>`
+        }
+      </div>
+    </div>
+
+    <div class="sync-section">
+      <div class="card-label" style="margin-bottom:10px">Sync from remote</div>
+      <div class="sync-row">
+        <div style="font-size:13px;color:var(--muted)">
+          ${s.last_synced ? `Files: ${new Date(s.last_synced).toLocaleString()}` : "Never synced"}
+          ${s.db_synced ? ` · DB: ${new Date(s.db_synced).toLocaleString()}` : ""}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn ghost" onclick="syncSite('${slug}', false)">↻ Files</button>
+          <button class="btn ghost" onclick="syncSite('${slug}', true)">↻ Files + DB</button>
+          ${s.hasDb && s.isDdevSetup ? `<button class="btn ghost" onclick="reimportDb('${slug}')">↺ Reimport DB</button>` : ""}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-label">Versions</div>
+        <div class="field">
+          <label>PHP Version</label>
+          <select onchange="updateSite('${slug}', 'php_version', this.value)">
+            ${["7.4","8.0","8.1","8.2","8.3"].map(v =>
+              `<option ${s.php_version === v ? "selected" : ""}>${v}</option>`
+            ).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>WP Version</label>
+          <input type="text" value="${s.wp_version || ""}"
+            onblur="updateSite('${slug}', 'wp_version', this.value)" />
+        </div>
+        <div class="field">
+          <label>Table Prefix</label>
+          <input type="text" value="${s.table_prefix || "wp_"}"
+            onblur="updateSite('${slug}', 'table_prefix', this.value)" />
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Git Theme</div>
+        <div class="field">
+          <label>Remote URL</label>
+          <input type="text" value="${s.git_remote || ""}"
+            placeholder="git@github.com:agency/theme.git"
+            onblur="updateSite('${slug}', 'git_remote', this.value)" />
+        </div>
+        <div class="field">
+          <label>Theme Folder</label>
+          <input type="text" value="${s.theme_folder || ""}"
+            placeholder="client-theme"
+            onblur="updateSite('${slug}', 'theme_folder', this.value)" />
+        </div>
+        <div class="toggle-row">
+          <span>R2 Uploads Offload</span>
+          <div class="toggle ${s.r2_offload ? "on" : ""}"
+            onclick="updateSite('${slug}', 'r2_offload', ${!s.r2_offload})"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Host / SSH</div>
+      <div class="grid-2" style="margin:0;gap:12px;">
+        <div class="field">
+          <label>Provider</label>
+          <select onchange="updateHost('${slug}', 'provider', this.value)">
+            ${["whc","generic","runcloud","rocketnet"].map(p =>
+              `<option ${(s.host?.provider||"generic")===p?"selected":""}>${p}</option>`
+            ).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>SSH User</label>
+          <input type="text" value="${s.host?.ssh_user||""}"
+            onblur="updateHost('${slug}', 'ssh_user', this.value)" />
+        </div>
+        <div class="field">
+          <label>SSH Host / IP</label>
+          <input type="text" value="${s.host?.ssh_host||""}"
+            onblur="updateHost('${slug}', 'ssh_host', this.value)" />
+        </div>
+        <div class="field">
+          <label>SSH Port</label>
+          <input type="number" value="${s.host?.ssh_port||22}"
+            onblur="updateHost('${slug}', 'ssh_port', parseInt(this.value))" />
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label>Remote Site Path</label>
+          <input type="text" value="${s.host?.site_path||""}"
+            placeholder="/home/user/public_html"
+            onblur="updateHost('${slug}', 'site_path', this.value)" />
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Actions ────────────────────────────────────────────
+async function setupSite(slug) {
+  appendLog(`\n▶ Setting up DDEV for: ${slug}\n`);
+  await api("POST", `/sites/${slug}/setup`);
+}
+
+async function syncSite(slug, withDb) {
+  appendLog(`\n▶ Syncing: ${slug}${withDb ? " (with DB)" : ""}\n`);
+  await api("POST", `/sites/${slug}/sync`, { db: withDb });
+}
+
+async function swapSite(slug) {
+  appendLog(`\n▶ Activating: ${slug}\n`);
+  await api("POST", `/sites/${slug}/swap`);
+}
+
+async function reimportDb(slug) {
+  appendLog(`\n▶ Reimporting DB: ${slug}\n`);
+  await api("POST", `/sites/${slug}/reimport-db`);
+}
+
+async function updateSite(slug, key, value) {
+  await api("PUT", `/sites/${slug}`, { [key]: value });
+  await loadSites();
+}
+
+async function updateHost(slug, key, value) {
+  const s = sites.find(x => x.slug === slug);
+  await api("PUT", `/sites/${slug}`, { host: { ...(s?.host || {}), [key]: value } });
+}
+
+function openAddModal() {
+  const slug = prompt("Site slug (e.g. client-name):");
+  if (!slug) return;
+  const domain = prompt("Domain (e.g. clientname.com):");
+  api("POST", "/sites", {
+    slug,
+    label: slug,
+    domain: domain || "",
+    php_version: "8.2",
+    wp_version: "6.5",
+    table_prefix: "wp_",
+    git_remote: "",
+    theme_folder: "",
+    r2_offload: false,
+    host: {
+      provider: "generic",
+      ssh_user: "",
+      ssh_host: "",
+      ssh_port: 22,
+      site_path: `/home/${slug}/public_html`
+    }
+  }).then(() => loadSites());
+}
+
+document.getElementById("search").addEventListener("input", renderSiteList);
+
+// ── Init ───────────────────────────────────────────────
+connectWs();
+loadStatus();
+loadSites();
+setInterval(loadStatus, 5000);
+</script>
+</body>
+</html>
