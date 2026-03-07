@@ -1,5 +1,6 @@
 # Client site files — never commit
 sites/
+sites.json
 
 # Env
 .env
