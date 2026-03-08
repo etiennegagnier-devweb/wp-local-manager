@@ -1,38 +1,56 @@
 [
   {
     "slug": "client-alpha",
-    "label": "Client Alpha — E-commerce",
+    "label": "Client Alpha",
     "domain": "clientalpha.com",
     "php_version": "8.2",
     "wp_version": "6.5",
     "table_prefix": "wp_",
-    "git_remote": "git@github-work:youragency/clientalpha-theme.git",
-    "theme_folder": "clientalpha-theme",
-    "r2_offload": true,
+    "git_remote": "git@github.com:agency/client-alpha-theme.git",
+    "theme_folder": "client-alpha-theme",
+    "r2_offload": false,
+    "notes": "Main contact: Jane Doe · jane@clientalpha.com\nHosted on WHC, cPanel account: clientalpha",
+    "last_synced": null,
+    "db_synced": null,
+    "ddev_setup": null,
+    "db_imported": null,
     "host": {
       "provider": "whc",
-      "ssh_user": "clientalpha",
+      "ssh_user": "root",
       "ssh_host": "whc-prod",
       "ssh_port": 22,
       "site_path": "/home/clientalpha/public_html"
+    },
+    "staging": {
+      "ssh_user": "root",
+      "ssh_host": "staging.clientalpha.com",
+      "ssh_port": 22,
+      "site_path": "/home/clientalpha/staging",
+      "url": "https://staging.clientalpha.com"
     }
   },
   {
     "slug": "client-beta",
-    "label": "Client Beta — Corporate",
+    "label": "Client Beta",
     "domain": "clientbeta.com",
     "php_version": "8.1",
     "wp_version": "6.4",
     "table_prefix": "wp_",
     "git_remote": "",
     "theme_folder": "",
-    "r2_offload": false,
+    "r2_offload": true,
+    "notes": "",
+    "last_synced": null,
+    "db_synced": null,
+    "ddev_setup": null,
+    "db_imported": null,
     "host": {
-      "provider": "whc",
-      "ssh_user": "clientbeta",
-      "ssh_host": "whc-prod",
-      "ssh_port": 22,
+      "provider": "generic",
+      "ssh_user": "root",
+      "ssh_host": "123.456.78.90",
+      "ssh_port": 2222,
       "site_path": "/home/clientbeta/public_html"
-    }
+    },
+    "staging": null
   }
 ]

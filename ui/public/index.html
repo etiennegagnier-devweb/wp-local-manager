@@ -651,6 +651,30 @@
     /* ── Divider ────────────────────────────────────── */
     .divider { height: 1px; background: var(--border); margin: 20px 0; }
 
+    /* ── Card tabs (Production / Staging) ───────────── */
+    .card-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+    }
+    .card-tab {
+      padding: 10px 14px 9px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text3);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color .15s;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      font-family: var(--font);
+    }
+    .card-tab:hover { color: var(--text2); }
+    .card-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
     /* ── Workspace tabs ─────────────────────────────── */
     .ws-tabs {
       display: flex;
@@ -1195,6 +1219,23 @@ function renderDetail(slug) {
       </div>
     </div>
 
+    <div class="section">
+      <div class="section-title">Push to staging</div>
+      <div class="sync-card">
+        ${s.staging?.ssh_host
+          ? `<div style="font-size:12px;color:var(--text3);line-height:1.6;">
+              Push to <span style="color:var(--text2);font-family:var(--mono)">${s.staging.ssh_host}</span>${s.staging.url ? ` · <a href="${s.staging.url}" target="_blank" style="color:var(--accent);text-decoration:none;">${s.staging.url} ↗</a>` : ""}.
+              Overwrites remote files.
+            </div>
+            <div class="sync-actions">
+              <button class="btn btn-ghost btn-sm" onclick="confirmPush('${slug}', false)">Push Files</button>
+              ${s.isDdevSetup ? `<button class="btn btn-ghost btn-sm" onclick="confirmPush('${slug}', true)">Push + DB</button>` : ""}
+            </div>`
+          : `<div style="font-size:12px;color:var(--text3);">No staging server configured. Add one in the <strong style="color:var(--text2)">Staging</strong> tab below.</div>`
+        }
+      </div>
+    </div>
+
     ${s.isActive ? `
     <div class="section">
       <div class="section-title">Dev Tools</div>
@@ -1293,7 +1334,12 @@ function renderDetail(slug) {
     <div class="section" style="margin-bottom:0">
       <div class="section-title">Host &amp; SSH</div>
       <div class="card-full">
-        <div class="card-body" style="padding-top:16px;">
+        <div class="card-tabs">
+          <button class="card-tab active" id="tab-prod-${slug}" onclick="switchHostTab('${slug}', 'prod')">Production</button>
+          <button class="card-tab" id="tab-staging-${slug}" onclick="switchHostTab('${slug}', 'staging')">Staging</button>
+        </div>
+
+        <div id="host-prod-${slug}" class="card-body" style="padding-top:16px;">
           <div class="config-grid" style="gap:12px;">
             <div class="field">
               <label>Provider</label>
@@ -1323,6 +1369,41 @@ function renderDetail(slug) {
               <input type="text" value="${s.host?.site_path||""}"
                 placeholder="/home/user/public_html"
                 onblur="updateHost('${slug}', 'site_path', this.value)" />
+            </div>
+          </div>
+        </div>
+
+        <div id="host-staging-${slug}" class="card-body" style="padding-top:16px;display:none;">
+          ${s.staging ? "" : `<p style="font-size:12px;color:var(--text3);margin-bottom:14px;">No staging server configured yet. Fill in the fields below to enable staging push.</p>`}
+          <div class="config-grid" style="gap:12px;">
+            <div class="field">
+              <label>SSH User</label>
+              <input type="text" value="${s.staging?.ssh_user||""}"
+                placeholder="root"
+                onblur="updateStaging('${slug}', 'ssh_user', this.value)" />
+            </div>
+            <div class="field">
+              <label>Host / IP</label>
+              <input type="text" value="${s.staging?.ssh_host||""}"
+                placeholder="staging.clientsite.com"
+                onblur="updateStaging('${slug}', 'ssh_host', this.value)" />
+            </div>
+            <div class="field">
+              <label>Port</label>
+              <input type="number" value="${s.staging?.ssh_port||22}"
+                onblur="updateStaging('${slug}', 'ssh_port', parseInt(this.value))" />
+            </div>
+            <div class="field" style="grid-column:1/-1">
+              <label>Remote Path</label>
+              <input type="text" value="${s.staging?.site_path||""}"
+                placeholder="/home/user/staging"
+                onblur="updateStaging('${slug}', 'site_path', this.value)" />
+            </div>
+            <div class="field" style="grid-column:1/-1">
+              <label>Staging URL <span style="color:var(--text3);font-weight:400">(for search-replace)</span></label>
+              <input type="text" value="${s.staging?.url||""}"
+                placeholder="https://staging.clientsite.com"
+                onblur="updateStaging('${slug}', 'url', this.value)" />
             </div>
           </div>
         </div>
@@ -1404,6 +1485,23 @@ async function updateSite(slug, key, value) {
 async function updateHost(slug, key, value) {
   const s = sites.find(x => x.slug === slug);
   await api("PUT", `/sites/${slug}`, { host: { ...(s?.host||{}), [key]: value } });
+}
+
+async function updateStaging(slug, key, value) {
+  const s = sites.find(x => x.slug === slug);
+  await api("PUT", `/sites/${slug}`, { staging: { ...(s?.staging||{}), [key]: value } });
+}
+
+function switchHostTab(slug, tab) {
+  const prodPane = document.getElementById(`host-prod-${slug}`);
+  const stagingPane = document.getElementById(`host-staging-${slug}`);
+  const prodTab = document.getElementById(`tab-prod-${slug}`);
+  const stagingTab = document.getElementById(`tab-staging-${slug}`);
+  if (!prodPane) return;
+  prodPane.style.display = tab === "prod" ? "" : "none";
+  stagingPane.style.display = tab === "staging" ? "" : "none";
+  prodTab.classList.toggle("active", tab === "prod");
+  stagingTab.classList.toggle("active", tab === "staging");
 }
 
 function openAddModal() {
@@ -1512,6 +1610,25 @@ async function stopAll() {
 document.getElementById("search").addEventListener("input", renderSiteList);
 
 
+
+// ── Push to staging ─────────────────────────────────────
+function confirmPush(slug, withDb) {
+  const s = sites.find(x => x.slug === slug);
+  const host = s && s.staging && s.staging.ssh_host ? s.staging.ssh_host : "staging";
+  showConfirm(
+    withDb ? "Push to staging — files + database?" : "Push to staging — files only?",
+    "This will overwrite wp-content on " + host + " with your local version" +
+    (withDb ? ", and replace the staging database with your local one" : "") +
+    ". This cannot be undone.",
+    withDb ? "Push Files + DB" : "Push Files",
+    () => pushSite(slug, withDb)
+  );
+}
+
+async function pushSite(slug, withDb) {
+  appendLog("\n▶ Pushing to staging: " + slug + (withDb ? " (+ DB)" : "") + "\n");
+  await api("POST", "/sites/" + slug + "/push", { db: withDb });
+}
 
 // ── Snapshots ───────────────────────────────────────────
 async function takeSnapshot(slug) {

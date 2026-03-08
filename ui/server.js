@@ -262,6 +262,17 @@ app.post("/api/sites/:slug/reimport-db", (req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/api/sites/:slug/push", (req, res) => {
+  const { slug } = req.params;
+  const { db, force } = req.body;
+  if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
+  const args = [`${SCRIPTS_PATH}/push-site.sh`, slug, "--yes"];
+  if (db) args.push("--db");
+  if (force) args.push("--force");
+  runScript(args, `Pushing ${slug}`);
+  res.json({ ok: true });
+});
+
 // -------------------------------------------------------
 // REST API — Disk usage
 // -------------------------------------------------------
