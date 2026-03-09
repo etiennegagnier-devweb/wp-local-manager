@@ -65,6 +65,7 @@ SITE_PATH=$(get_field '.host.site_path')
 GIT_REMOTE=$(get_field '.git_remote // empty')
 THEME_FOLDER=$(get_field '.theme_folder // empty')
 R2_OFFLOAD=$(get_field '.r2_offload // false')
+PROXY_UPLOADS=$(get_field '.proxy_uploads // false')
 
 if [[ -z "$SSH_HOST" ]]; then
   echo "❌  Site '$SITE_SLUG' not found in sites.json"
@@ -94,6 +95,11 @@ EXCLUDES=(
 
 if [[ "$R2_OFFLOAD" == "true" ]]; then
   echo "    ☁️  R2 offload — skipping uploads/"
+  EXCLUDES+=(--exclude="wp-content/uploads/")
+fi
+
+if [[ "$PROXY_UPLOADS" == "true" ]]; then
+  echo "    🌐 Proxy uploads — skipping uploads/"
   EXCLUDES+=(--exclude="wp-content/uploads/")
 fi
 

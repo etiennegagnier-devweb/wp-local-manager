@@ -51,6 +51,7 @@ get_field() {
 PHP_VERSION=$(get_field '.php_version // "8.2"')
 WP_VERSION=$(get_field  '.wp_version  // "6.5"')
 DOMAIN=$(get_field '.domain')
+PROXY_UPLOADS=$(get_field '.proxy_uploads // false')
 
 if [[ -z "$DOMAIN" ]]; then
   echo "❌  Site '$SITE_SLUG' not found in sites.json"
@@ -81,6 +82,32 @@ router_https_port: "443"
 DDEVEOF
 
 echo "    ✅ DDEV config created"
+
+# -------------------------------------------------------
+# Proxy uploads: wp-config.ddev.php + nginx fallback
+# -------------------------------------------------------
+if [[ "$PROXY_UPLOADS" == "true" ]]; then
+  echo "    🌐 Proxy uploads enabled — writing wp-config.ddev.php and nginx config..."
+
+  cat > "$SITE_DIR/wp-config.ddev.php" << EOF
+<?php define('WP_CONTENT_URL', 'https://$DOMAIN/wp-content');
+EOF
+
+  mkdir -p "$SITE_DIR/.ddev/nginx_full"
+  cat > "$SITE_DIR/.ddev/nginx_full/nginx-site.conf" << NGINXEOF
+location ~* /wp-content/uploads/ {
+    try_files \$uri @prod_uploads;
+}
+location @prod_uploads {
+    proxy_pass https://$DOMAIN;
+}
+NGINXEOF
+
+  echo "    ✅ Proxy uploads configured"
+else
+  rm -f "$SITE_DIR/wp-config.ddev.php"
+  rm -f "$SITE_DIR/.ddev/nginx_full/nginx-site.conf"
+fi
 
 # -------------------------------------------------------
 # Start DDEV

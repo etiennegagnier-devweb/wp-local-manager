@@ -1323,6 +1323,11 @@ function renderDetail(slug) {
               <div class="toggle ${s.r2_offload ? "on" : ""}"
                 onclick="updateSite('${slug}', 'r2_offload', ${!s.r2_offload})"></div>
             </div>
+            <div class="toggle-row">
+              <span>Proxy Uploads</span>
+              <div class="toggle ${s.proxy_uploads ? "on" : ""}"
+                onclick="updateSite('${slug}', 'proxy_uploads', ${!s.proxy_uploads})"></div>
+            </div>
           </div>
         </div>
 
@@ -1577,7 +1582,7 @@ async function submitAddSite() {
   const result = await api("POST", "/sites", {
     slug, label, domain,
     php_version: php, wp_version: wp, table_prefix: prefix,
-    git_remote: "", theme_folder: "", r2_offload: false, notes: "",
+    git_remote: "", theme_folder: "", r2_offload: false, proxy_uploads: false, notes: "",
     host: { provider, ssh_user: sshUser, ssh_host: sshHost, ssh_port: sshPort, site_path: sitePath },
     ...(targetFile ? { _file: targetFile } : {})
   });
