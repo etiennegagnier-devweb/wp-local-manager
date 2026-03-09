@@ -89,23 +89,22 @@ EXCLUDES=(
   --exclude=".git"
   --exclude="*.log"
   --exclude="cache/"
-  --exclude="wp-content/cache/"
-  --exclude="wp-content/upgrade/"
+  --exclude="upgrade/"
 )
 
 if [[ "$R2_OFFLOAD" == "true" ]]; then
   echo "    ☁️  R2 offload — skipping uploads/"
-  EXCLUDES+=(--exclude="wp-content/uploads/")
+  EXCLUDES+=(--exclude="uploads/")
 fi
 
 if [[ "$PROXY_UPLOADS" == "true" ]]; then
   echo "    🌐 Proxy uploads — skipping uploads/"
-  EXCLUDES+=(--exclude="wp-content/uploads/")
+  EXCLUDES+=(--exclude="uploads/")
 fi
 
 if [[ -n "$GIT_REMOTE" && -n "$THEME_FOLDER" ]]; then
   echo "    🌿 Theme '$THEME_FOLDER' managed by git — skipping from rsync"
-  EXCLUDES+=(--exclude="wp-content/themes/$THEME_FOLDER/")
+  EXCLUDES+=(--exclude="themes/$THEME_FOLDER/")
 fi
 
 # -------------------------------------------------------
