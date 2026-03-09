@@ -34,6 +34,12 @@ source ~/.bashrc
 nvm install 20 && nvm use 20
 ```
 
+If you see a warning about `.npmrc` having an incompatible `prefix` setting, run:
+
+```bash
+nvm use --delete-prefix v20.20.1 --silent
+```
+
 ### 3. Update Docker Buildx
 
 DDEV requires Buildx 0.17.0 or later. The version bundled with Docker Desktop is often outdated.
@@ -76,8 +82,9 @@ mkcert -install
 **Step 3 — Copy the Windows CA into WSL:**
 ```bash
 mkdir -p $HOME/.local/share/mkcert
-cp /mnt/c/Users/YOUR_WINDOWS_USERNAME/AppData/Local/mkcert/rootCA.pem $HOME/.local/share/mkcert/rootCA.pem
-cp /mnt/c/Users/YOUR_WINDOWS_USERNAME/AppData/Local/mkcert/rootCA-key.pem $HOME/.local/share/mkcert/rootCA-key.pem
+sudo chown -R $USER:$USER $HOME/.local/share/mkcert
+sudo cp /mnt/c/Users/YOUR_WINDOWS_USERNAME/AppData/Local/mkcert/rootCA.pem $HOME/.local/share/mkcert/rootCA.pem
+sudo cp /mnt/c/Users/YOUR_WINDOWS_USERNAME/AppData/Local/mkcert/rootCA-key.pem $HOME/.local/share/mkcert/rootCA-key.pem
 mkcert -install
 ```
 
@@ -344,9 +351,21 @@ pm2 start ~/wp-local-manager/ui/server.js --name wplm
 pm2 save && pm2 startup
 ```
 
-UI stays running at `http://localhost:3000` without a terminal window.
+`pm2 startup` will print a command to run. **Do not copy-paste it directly** — on WSL2 the Windows PATH leaks into sudo and causes it to fail. Instead, use the direct Node path:
 
 ```bash
-# to restart the server
-pm2 restart wplm
+sudo env "PATH=/home/YOUR_USERNAME/.nvm/versions/node/vX.X.X/bin:$PATH" /home/YOUR_USERNAME/.nvm/versions/node/vX.X.X/lib/node_modules/pm2/bin/pm2 startup systemd -u YOUR_USERNAME --hp /home/etienne
 ```
+
+Replace `YOUR_USERNAME` with your Linux username and `vX.X.X` with your Node version (`node --version`).
+
+UI stays running at `http://localhost:3000` without a terminal window.
+
+**Useful pm2 commands:**
+```bash
+pm2 restart wplm   # apply server.js changes
+pm2 logs wplm      # tail logs
+pm2 status         # check if running
+```
+
+> Note: `index.html` is served statically -- no restart needed for UI-only changes.
