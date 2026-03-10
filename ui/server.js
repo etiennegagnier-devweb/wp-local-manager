@@ -383,6 +383,28 @@ app.post("/api/sites/:slug/snapshot/restore", (req, res) => {
 });
 
 // -------------------------------------------------------
+// REST API — Open in editor
+// -------------------------------------------------------
+
+app.post("/api/sites/:slug/open-editor", (req, res) => {
+  const { slug } = req.params;
+  const { editor } = req.body;
+  const site = getSite(slug);
+  if (!site) return res.status(404).json({ error: "Site not found" });
+
+  const themesPath = path.join(SITES_PATH, slug, "wp-content", "themes");
+  const folderPath = site.theme_folder
+    ? path.join(themesPath, site.theme_folder)
+    : themesPath;
+
+  const cmd = editor === "cursor" ? "cursor" : "code";
+  exec(`${cmd} "${folderPath}"`, { timeout: 10000 }, (err) => {
+    if (err) return res.status(500).json({ error: `Failed to open ${cmd}: ${err.message}` });
+    res.json({ ok: true });
+  });
+});
+
+// -------------------------------------------------------
 // REST API — Stop all
 // -------------------------------------------------------
 
