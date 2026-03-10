@@ -993,6 +993,10 @@ function appendLog(text) {
   if (text.includes("❌") || text.toLowerCase().includes("fatal") || text.startsWith("rsync:")) line.className = "log-err";
   else if (text.includes("✅")) line.className = "log-ok";
   el.appendChild(line);
+
+  // Cap log at 500 lines to prevent memory issues
+  while (el.children.length > 500) el.removeChild(el.firstChild);
+
   el.scrollTop = el.scrollHeight;
 }
 
@@ -1212,9 +1216,10 @@ function renderDetail(slug) {
           </div>
         </div>
         <div class="sync-actions">
-          <button class="btn btn-ghost btn-sm" onclick="syncSite('${slug}', false)">Sync Files</button>
-          <button class="btn btn-ghost btn-sm" onclick="syncSite('${slug}', true)">Sync + DB</button>
-          ${s.hasDb && s.isDdevSetup ? `<button class="btn btn-ghost btn-sm" onclick="confirmReimport('${slug}')">Reimport DB</button>` : ""}
+          ${s.isSynced && s.isDdevSetup ? `<button class="btn btn-ghost btn-sm" onclick="syncSite('${slug}', false)">Sync Files</button>` : ""}
+          ${s.isSynced && s.isDdevSetup ? `<button class="btn btn-ghost btn-sm" onclick="syncSite('${slug}', true)">Sync + DB</button>` : ""}
+          ${s.hasDb && s.isDdevSetup && s.isSynced ? `<button class="btn btn-ghost btn-sm" onclick="confirmReimport('${slug}')">Reimport DB</button>` : ""}
+          ${!s.isSynced && s.isDdevSetup ? `<button class="btn btn-ghost btn-sm" onclick="syncSite('${slug}', true, true)">Initial Sync</button>` : ""}
         </div>
       </div>
     </div>
@@ -1229,7 +1234,7 @@ function renderDetail(slug) {
             </div>
             <div class="sync-actions">
               <button class="btn btn-ghost btn-sm" onclick="confirmPush('${slug}', false)">Push Files</button>
-              ${s.isDdevSetup ? `<button class="btn btn-ghost btn-sm" onclick="confirmPush('${slug}', true)">Push + DB</button>` : ""}
+              ${s.isDdevSetup && s.isSynced ? `<button class="btn btn-ghost btn-sm" onclick="confirmPush('${slug}', true)">Push + DB</button>` : ""}
             </div>`
           : `<div style="font-size:12px;color:var(--text3);">No staging server configured. Add one in the <strong style="color:var(--text2)">Staging</strong> tab below.</div>`
         }
@@ -1454,9 +1459,9 @@ async function setupSite(slug) {
   appendLog(`\n▶ Setting up: ${slug}\n`);
   await api("POST", `/sites/${slug}/setup`);
 }
-async function syncSite(slug, withDb) {
-  appendLog(`\n▶ Syncing: ${slug}${withDb ? " (+ DB)" : ""}\n`);
-  await api("POST", `/sites/${slug}/sync`, { db: withDb });
+async function syncSite(slug, withDb, initial = false) {
+  appendLog(`\n▶ Syncing: ${slug}${withDb ? " (+ DB)" : ""}${initial ? " (initial)" : ""}\n`);
+  await api("POST", `/sites/${slug}/sync`, { db: withDb, initial });
 }
 async function swapSite(slug) {
   appendLog(`\n▶ Starting: ${slug}\n`);

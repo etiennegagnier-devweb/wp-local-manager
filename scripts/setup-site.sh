@@ -93,8 +93,7 @@ if [[ "$PROXY_UPLOADS" == "true" ]]; then
 <?php define('WP_CONTENT_URL', 'https://$DOMAIN/wp-content');
 EOF
 
-  mkdir -p "$SITE_DIR/.ddev/nginx_full"
-  cat > "$SITE_DIR/.ddev/nginx_full/nginx-site.conf" << NGINXEOF
+  cat > "$SITE_DIR/.ddev/nginx-site.conf" << NGINXEOF
 location ~* /wp-content/uploads/ {
     try_files \$uri @prod_uploads;
 }
@@ -106,6 +105,7 @@ NGINXEOF
   echo "    ✅ Proxy uploads configured"
 else
   rm -f "$SITE_DIR/wp-config.ddev.php"
+  rm -f "$SITE_DIR/.ddev/nginx-site.conf"
   rm -f "$SITE_DIR/.ddev/nginx_full/nginx-site.conf"
 fi
 

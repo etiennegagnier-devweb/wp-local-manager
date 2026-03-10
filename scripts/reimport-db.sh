@@ -61,10 +61,10 @@ echo "🗄️  Reimporting DB for: $SITE_SLUG"
 echo "🔍  Search-replace URLs..."
 (cd "$SITE_DIR" && ddev exec wp search-replace \
   "https://$DOMAIN" "https://$SITE_SLUG.ddev.site" \
-  --all-tables --allow-root --quiet)
+  --all-tables --allow-root --quiet --skip-plugins --skip-themes)
 (cd "$SITE_DIR" && ddev exec wp search-replace \
   "http://$DOMAIN" "https://$SITE_SLUG.ddev.site" \
-  --all-tables --allow-root --quiet)
+  --all-tables --allow-root --quiet --skip-plugins --skip-themes)
 
 # Update db_imported timestamp
 TMP=$(mktemp)

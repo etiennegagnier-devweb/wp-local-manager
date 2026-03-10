@@ -232,11 +232,12 @@ app.post("/api/sites/:slug/setup", (req, res) => {
 
 app.post("/api/sites/:slug/sync", (req, res) => {
   const { slug } = req.params;
-  const { db, force } = req.body;
+  const { db, force, initial } = req.body;
   if (!getSite(slug)) return res.status(404).json({ error: "Site not found" });
   const args = [`${SCRIPTS_PATH}/sync-site.sh`, slug];
   if (db) args.push("--db");
   if (force) args.push("--force");
+  if (initial) args.push("--initial");
   runScript(args, `Syncing ${slug}`);
   res.json({ ok: true });
 });

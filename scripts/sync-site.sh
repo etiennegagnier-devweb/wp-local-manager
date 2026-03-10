@@ -8,11 +8,13 @@ set -euo pipefail
 SITE_SLUG="${1:-}"
 PULL_DB=false
 FORCE=false
+INITIAL=false
 
 for arg in "${@:2}"; do
   case $arg in
     --db) PULL_DB=true ;;
     --force) FORCE=true ;;
+    --initial) INITIAL=true ;;
   esac
 done
 
@@ -88,8 +90,11 @@ mkdir -p "$SITE_DIR/wp-content"
 EXCLUDES=(
   --exclude=".git"
   --exclude="*.log"
-  --exclude="cache/"
-  --exclude="upgrade/"
+  --exclude="/cache/"
+  --exclude="/upgrade/"
+  --exclude="cfdb7_uploads/"
+  --exclude="wp_dndcf7_uploads/"
+  --exclude="webp-express/"
 )
 
 if [[ "$R2_OFFLOAD" == "true" ]]; then
@@ -112,7 +117,10 @@ fi
 # -------------------------------------------------------
 RSYNC_OPTS=(-avz --delete --info=progress2 "${EXCLUDES[@]}")
 
-if [[ "$FORCE" == "true" ]] || [[ ! -d "$SITE_DIR/wp-content/themes" ]]; then
+if [[ "$INITIAL" == "true" ]]; then
+  echo "    📦 Initial sync (checksum verification)..."
+  RSYNC_OPTS+=(--checksum)
+elif [[ "$FORCE" == "true" ]] || [[ ! -d "$SITE_DIR/wp-content/themes" ]]; then
   echo "    📦 Full sync..."
 else
   echo "    📦 Incremental sync..."
